@@ -27,7 +27,6 @@
                             text: '#33691e',    /* Dark green text */
                             buy: '#c8e6c9',     /* Green for Buy */
                             sell: '#f8bbd0',    /* Pink for Sell */
-                            neutral: '#f5f5f5', /* Neutral Gray */
                             done: '#cfd8dc',    /* Gray for Done */
                             
                             /* Toggle Colors */
@@ -57,7 +56,7 @@
         /* TP Block Styling */
         .tp-box {
             transition: all 0.3s ease;
-            background-color: white; /* White bg for inner boxes */
+            background-color: white; /* Ensure white background for text readability */
         }
         /* Mode specific borders for TP boxes */
         .tp-box.buy-mode { border-color: #4caf50; border-width: 2px; }
@@ -114,12 +113,14 @@
             display: none;
         }
 
-        /* Print Styles */
+        /* Print Styles - ROBUST METHOD */
         @media print {
+            /* Hide the entire main body content */
             body > *:not(#print-output) {
                 display: none !important;
             }
 
+            /* Show only the print output div */
             #print-output {
                 display: block !important;
                 position: absolute;
@@ -130,11 +131,13 @@
                 padding: 20px;
             }
 
+            /* Ensure background colors print */
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
 
+            /* Layout adjustments for print */
             #print-output .grid {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -162,6 +165,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- Firebase Config ---
         const firebaseConfig = {
             apiKey: "AIzaSyBxg46N-kB1zDyrIEAnVqlACqmmOZnu6Fg",
             authDomain: "mytradingjournal-208c5.firebaseapp.com",
@@ -172,9 +176,11 @@
             measurementId: "G-JKF602BZDS"
         };
 
+        // --- Variables ---
         let db, dataDocRef;
         const publicDocPath = "/publicJournal/sharedData";
 
+        // --- Init ---
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const app = initializeApp(firebaseConfig);
@@ -184,6 +190,7 @@
                 
                 dataDocRef = doc(db, publicDocPath);
                 
+                // Realtime Listener
                 onSnapshot(dataDocRef, (docSnap) => {
                     if (docSnap.exists()) {
                         loadDataToUI(docSnap.data());
@@ -201,18 +208,33 @@
             }
         });
 
+        // --- Data Handling ---
         const fields = [
             'date', 'dr-price', 
+            // MN - Setup 1
             'mn-sig', 'mn-wick', 'mn-tp1-check', 'mn-tp2-check', 'mn-low', 'mn-high',
+            // MN - Setup 2
             'mn-toggle-2', 'mn-sig-2', 'mn-wick-2', 'mn-tp1-check-2', 'mn-tp2-check-2',
+            
+            // WK - Setup 1
             'wk-sig', 'wk-wick', 'wk-tp1-check', 'wk-tp2-check', 'wk-low', 'wk-high',
+            // WK - Setup 2
             'wk-toggle-2', 'wk-sig-2', 'wk-wick-2', 'wk-tp1-check-2', 'wk-tp2-check-2',
+
+            // D - Setup 1
             'd-sig', 'd-wick', 'd-tp1-check', 'd-tp2-check', 'd-low', 'd-high',
+            // D - Setup 2
             'd-toggle-2', 'd-sig-2', 'd-wick-2', 'd-tp1-check-2', 'd-tp2-check-2',
+
+            // H4 - Setup 1
             'h4-sig', 'h4-wick', 'h4-tp1-check', 'h4-tp2-check', 'h4-low', 'h4-high',
+            // H4 - Setup 2
             'h4-toggle-2', 'h4-sig-2', 'h4-wick-2', 'h4-tp1-check-2', 'h4-tp2-check-2',
-            'h1-sig', 'h1-wick', 'h1-tp1-check', 'h1-tp2-check', 'h1-low', 'h1-high',
-            'h1-toggle-2', 'h1-sig-2', 'h1-wick-2', 'h1-tp1-check-2', 'h1-tp2-check-2',
+
+            // H1 - Setup 1 (Modified: Single Setup, Single TP)
+            'h1-sig', 'h1-wick', 'h1-tp1-check', 'h1-low', 'h1-high',
+            
+            // Note
             'daily-note'
         ];
 
@@ -237,7 +259,10 @@
             await setDoc(dataDocRef, data);
         }
 
+        // --- Logic & Calculations ---
+        
         function recalcAll() {
+            // Daily Frame
             const drPrice = parseFloat(document.getElementById('dr-price').value) || 0;
             if (drPrice) {
                 document.getElementById('dr-res').innerText = (drPrice + 5).toFixed(2);
@@ -247,25 +272,30 @@
                 document.getElementById('dr-sup').innerText = "...";
             }
 
+            // Main Timeframes (Setup 1 and Setup 2)
             processTimeframe('mn', 500, 1000);
             processTimeframe('wk', 150, 300);
             processTimeframe('d', 50, 100);
             processTimeframe('h4', 15, 30);
-            processTimeframe('h1', 10, 20);
+            
+            // H1: Single Setup, Single TP
+            calcTF('h1', '', 10, null); // null for tp2Diff indicates no TP2
 
             updateSummary();
         }
 
         function processTimeframe(prefix, tp1Diff, tp2Diff) {
+            // Calc Setup 1
             calcTF(prefix, '', tp1Diff, tp2Diff);
             
+            // Check Toggle for Setup 2
             const toggle = document.getElementById(`${prefix}-toggle-2`);
             const container2 = document.getElementById(`${prefix}-setup-2`);
             
             if (toggle && toggle.checked) {
                 container2.classList.remove('hidden');
-                calcTF(prefix, '-2', tp1Diff, tp2Diff);
-            } else {
+                calcTF(prefix, '-2', tp1Diff, tp2Diff); // Calc Setup 2
+            } else if (container2) {
                 container2.classList.add('hidden');
             }
         }
@@ -274,22 +304,25 @@
             const sigId = `${prefix}-sig${suffix}`;
             const wickId = `${prefix}-wick${suffix}`;
             const tp1CheckId = `${prefix}-tp1-check${suffix}`;
-            const tp2CheckId = `${prefix}-tp2-check${suffix}`;
+            const tp2CheckId = tp2Diff !== null ? `${prefix}-tp2-check${suffix}` : null;
             
-            // Identify the setup container to change background
-            // If suffix is empty -> Setup 1 container is id=`${prefix}-setup-1`
-            // If suffix is '-2' -> Setup 2 container is id=`${prefix}-setup-2`
-            const containerId = `${prefix}-setup${suffix === '-2' ? '-2' : '-1'}`;
-            const containerEl = document.getElementById(containerId);
-
             const sigEl = document.getElementById(sigId);
             const wickEl = document.getElementById(wickId);
             
+            // UI Targets
             const tp1El = document.getElementById(`${prefix}-tp1-val${suffix}`);
-            const tp2El = document.getElementById(`${prefix}-tp2-val${suffix}`);
+            const tp2El = tp2Diff !== null ? document.getElementById(`${prefix}-tp2-val${suffix}`) : null;
+            
+            // Label Targets (for dynamic text)
+            const tp1LabelEl = document.getElementById(`${prefix}-tp1-label${suffix}`);
+            const tp2LabelEl = tp2Diff !== null ? document.getElementById(`${prefix}-tp2-label${suffix}`) : null;
+
             const box1 = document.getElementById(`${prefix}-tp1-box${suffix}`);
-            const box2 = document.getElementById(`${prefix}-tp2-box${suffix}`);
+            const box2 = tp2Diff !== null ? document.getElementById(`${prefix}-tp2-box${suffix}`) : null;
             const msgEl = document.getElementById(`${prefix}-msg${suffix}`);
+            
+            const containerId = `${prefix}-setup${suffix === '-2' ? '-2' : '-1'}`;
+            const containerEl = document.getElementById(containerId);
 
             if (!sigEl || !wickEl) return;
 
@@ -297,72 +330,114 @@
             const wickInput = wickEl.value;
             const wick = parseFloat(wickInput);
             const tp1Check = document.getElementById(tp1CheckId).checked;
-            const tp2Check = document.getElementById(tp2CheckId).checked;
+            const tp2Check = tp2CheckId ? document.getElementById(tp2CheckId).checked : false;
 
             let tp1Val = 0, tp2Val = 0;
 
-            // --- Dynamic Background Logic ---
-            // Reset base classes
-            containerEl.className = "setup-container p-4 rounded-lg mb-4 border transition-colors duration-300";
+            // Reset Styles
+            if (box1) box1.className = "tp-box border rounded p-2 flex items-center justify-between";
+            if (box2) box2.className = "tp-box border rounded p-2 flex items-center justify-between mt-2";
+            if (containerEl) containerEl.className = "setup-container p-4 rounded-lg mb-4 border transition-colors duration-300";
+            if (msgEl) msgEl.innerText = "";
             
-            if (sig.includes("Buy")) {
-                containerEl.classList.add("bg-pastel-buy", "border-green-200");
-            } else if (sig.includes("Sell")) {
-                containerEl.classList.add("bg-pastel-sell", "border-pink-200");
+            // Default Labels (if no signal)
+            let tfLabel = prefix.toUpperCase();
+            if (suffix === '-2') {
+                if(tp1LabelEl) tp1LabelEl.innerText = `TP1 (+/- ${tp1Diff})`;
+                if(tp2LabelEl) tp2LabelEl.innerText = `TP2 (+/- ${tp2Diff})`;
             } else {
-                containerEl.classList.add("bg-pastel-neutral", "border-gray-200");
+                if(tp1LabelEl) tp1LabelEl.innerText = `TP1 ${tfLabel} (+/- ${tp1Diff})`;
+                if(tp2LabelEl) tp2LabelEl.innerText = `TP2 ${tfLabel} (+/- ${tp2Diff})`;
             }
 
-            // Reset Box Styles
-            box1.className = "tp-box border rounded p-2 flex items-center justify-between";
-            box2.className = "tp-box border rounded p-2 flex items-center justify-between mt-2";
-            msgEl.innerText = "";
-
             if (!sig) {
-                tp1El.innerText = "...";
-                tp2El.innerText = "...";
+                if(tp1El) tp1El.innerText = "...";
+                if(tp2El) tp2El.innerText = "...";
+                if(containerEl) containerEl.classList.add("bg-pastel-neutral", "border-gray-200");
                 return; 
             }
 
+            // Signal Present - Set Background
+            if (sig.includes("Buy")) {
+                if(containerEl) containerEl.classList.add("bg-pastel-buy", "border-green-200");
+            } else if (sig.includes("Sell")) {
+                if(containerEl) containerEl.classList.add("bg-pastel-sell", "border-pink-200");
+            }
+
             if (isNaN(wick) || wickInput === "") {
-                tp1El.innerText = "...";
-                tp2El.innerText = "...";
-                msgEl.innerText = "**รอไส้หลัง Sig**";
-                msgEl.className = "text-sm text-red-500 font-bold mt-2 bg-white/50 p-1 rounded inline-block";
+                if(tp1El) tp1El.innerText = "...";
+                if(tp2El) tp2El.innerText = "...";
+                if(msgEl) {
+                    msgEl.innerText = "**รอไส้หลัง Sig**";
+                    msgEl.className = "text-sm text-red-500 font-bold mt-2 bg-white/50 p-1 rounded inline-block";
+                }
                 return;
             }
 
             if (sig.includes("Buy")) {
                 tp1Val = wick + tp1Diff;
-                tp2Val = wick + tp2Diff;
-                if (!tp1Check) box1.classList.add("buy-mode");
-                if (!tp2Check) box2.classList.add("buy-mode");
+                if(tp2Diff !== null) tp2Val = wick + tp2Diff;
+                
+                // Update Labels for Buy
+                if (suffix === '-2') {
+                    if(tp1LabelEl) tp1LabelEl.innerText = `TP1 (+${tp1Diff})`;
+                    if(tp2LabelEl) tp2LabelEl.innerText = `TP2 (+${tp2Diff})`;
+                } else {
+                    if(tp1LabelEl) tp1LabelEl.innerText = `TP1 ${tfLabel} (+${tp1Diff})`;
+                    if(tp2LabelEl) tp2LabelEl.innerText = `TP2 ${tfLabel} (+${tp2Diff})`;
+                }
+
+                if (!tp1Check && box1) box1.classList.add("buy-mode");
+                if (!tp2Check && box2) box2.classList.add("buy-mode");
+
             } else if (sig.includes("Sell")) {
                 tp1Val = wick - tp1Diff;
-                tp2Val = wick - tp2Diff;
-                if (!tp1Check) box1.classList.add("sell-mode");
-                if (!tp2Check) box2.classList.add("sell-mode");
+                if(tp2Diff !== null) tp2Val = wick - tp2Diff;
+                
+                // Update Labels for Sell
+                if (suffix === '-2') {
+                    if(tp1LabelEl) tp1LabelEl.innerText = `TP1 (-${tp1Diff})`;
+                    if(tp2LabelEl) tp2LabelEl.innerText = `TP2 (-${tp2Diff})`;
+                } else {
+                    if(tp1LabelEl) tp1LabelEl.innerText = `TP1 ${tfLabel} (-${tp1Diff})`;
+                    if(tp2LabelEl) tp2LabelEl.innerText = `TP2 ${tfLabel} (-${tp2Diff})`;
+                }
+
+                if (!tp1Check && box1) box1.classList.add("sell-mode");
+                if (!tp2Check && box2) box2.classList.add("sell-mode");
             }
             
-            tp1El.innerText = tp1Val.toFixed(2);
-            tp2El.innerText = tp2Val.toFixed(2);
+            if(tp1El) tp1El.innerText = tp1Val.toFixed(2);
+            if(tp2El) tp2El.innerText = tp2Val.toFixed(2);
 
             const tfName = prefix.toUpperCase();
             const setupName = suffix ? " (Setup 2)" : "";
             
-            if (tp1Check && !tp2Check) {
-                msgEl.innerHTML = `ครบ TP1 ${tfName}${setupName} แล้วที่ ${tp1Val.toFixed(2)} ✅ ยังขาด TP2 ที่ ${tp2Val.toFixed(2)}<br>เช็ครอบที่ ${wick.toFixed(2)}`;
-                msgEl.className = "text-sm text-orange-600 font-semibold mt-2 bg-white/50 p-1 rounded inline-block";
-            } else if (tp1Check && tp2Check) {
-                msgEl.innerHTML = `ครบรอบ แล้วทั้ง 2 TP ${tfName}${setupName} ✅✅`;
-                msgEl.className = "text-sm text-green-700 font-bold mt-2 bg-white/50 p-1 rounded inline-block";
+            if (msgEl) {
+                if (tp2Diff !== null) {
+                    // Logic for 2 TPs
+                    if (tp1Check && !tp2Check) {
+                        msgEl.innerHTML = `ครบ TP1 ${tfName}${setupName} แล้วที่ ${tp1Val.toFixed(2)} ✅ ยังขาด TP2 ที่ ${tp2Val.toFixed(2)}<br>เช็ครอบที่ ${wick.toFixed(2)}`;
+                        msgEl.className = "text-sm text-orange-600 font-semibold mt-2 bg-white/50 p-1 rounded inline-block";
+                    } else if (tp1Check && tp2Check) {
+                        msgEl.innerHTML = `ครบรอบ แล้วทั้ง 2 TP ${tfName}${setupName} ✅✅`;
+                        msgEl.className = "text-sm text-green-700 font-bold mt-2 bg-white/50 p-1 rounded inline-block";
+                    }
+                } else {
+                    // Logic for Single TP (H1)
+                     if (tp1Check) {
+                        msgEl.innerHTML = `ครบ TP1 ${tfName} แล้วที่ ${tp1Val.toFixed(2)} ✅`;
+                        msgEl.className = "text-sm text-green-700 font-bold mt-2 bg-white/50 p-1 rounded inline-block";
+                    }
+                }
             }
 
-            if (tp1Check) box1.classList.add("done-mode");
-            if (tp2Check) box2.classList.add("done-mode");
+            if (tp1Check && box1) box1.classList.add("done-mode");
+            if (tp2Check && box2) box2.classList.add("done-mode");
         }
 
         async function clearSection(prefix) {
+            // Find fields starting with prefix
             fields.forEach(key => {
                 if (key.startsWith(prefix + '-')) {
                     const el = document.getElementById(key);
@@ -372,6 +447,7 @@
                     }
                 }
             });
+            
             recalcAll();
             await saveData();
             
@@ -426,12 +502,7 @@
         window.printSummary = () => {
             updateSummary();
             let summaryHTML = document.getElementById('summary-content').innerHTML;
-            
-            // Map colors for print
-            summaryHTML = summaryHTML.replace(/bg-pastel-buy/g, 'bg-pastel-buy');
-            summaryHTML = summaryHTML.replace(/bg-pastel-sell/g, 'bg-pastel-sell');
-            summaryHTML = summaryHTML.replace(/bg-white/g, 'bg-white');
-
+            summaryHTML = summaryHTML.replace(/bg-white/g, 'bg-pastel-bg');
             const noteContent = document.getElementById('daily-note').value;
             const printArea = document.getElementById('print-output');
             let printHTML = `
@@ -492,15 +563,24 @@
                 const sig1 = document.getElementById(`${tf}-sig`).value;
                 const wick1 = document.getElementById(`${tf}-wick`).value;
                 const tp1_1 = document.getElementById(`${tf}-tp1-val`).innerText;
-                const tp2_1 = document.getElementById(`${tf}-tp2-val`).innerText;
                 const status1 = document.getElementById(`${tf}-msg`).innerHTML;
                 
-                const toggle2 = document.getElementById(`${tf}-toggle-2`).checked;
-                const sig2 = document.getElementById(`${tf}-sig-2`).value;
-                const wick2 = document.getElementById(`${tf}-wick-2`).value;
-                const tp1_2 = document.getElementById(`${tf}-tp1-val-2`).innerText;
-                const tp2_2 = document.getElementById(`${tf}-tp2-val-2`).innerText;
-                const status2 = document.getElementById(`${tf}-msg-2`).innerHTML;
+                // Get TP2 if exists (not for H1)
+                const tp2El = document.getElementById(`${tf}-tp2-val`);
+                const tp2_1 = tp2El ? tp2El.innerText : null;
+
+                // Setup 2 (only for MN, WK, D, H4)
+                let hasSetup2 = document.getElementById(`${tf}-toggle-2`);
+                let toggle2 = false, sig2 = '', wick2 = '', tp1_2 = '', tp2_2 = '', status2 = '';
+
+                if (hasSetup2) {
+                    toggle2 = hasSetup2.checked;
+                    sig2 = document.getElementById(`${tf}-sig-2`).value;
+                    wick2 = document.getElementById(`${tf}-wick-2`).value;
+                    tp1_2 = document.getElementById(`${tf}-tp1-val-2`).innerText;
+                    tp2_2 = document.getElementById(`${tf}-tp2-val-2`).innerText;
+                    status2 = document.getElementById(`${tf}-msg-2`).innerHTML;
+                }
 
                 const low = document.getElementById(`${tf}-low`).value;
                 const high = document.getElementById(`${tf}-high`).value;
@@ -515,23 +595,21 @@
                     if (sig1 && sig1.includes("Buy")) bg1 = "bg-pastel-buy";
                     else if (sig1 && sig1.includes("Sell")) bg1 = "bg-pastel-sell";
 
-                    let bg2 = "bg-gray-50"; 
-                    if (toggle2 && sig2) {
-                        if (sig2.includes("Buy")) bg2 = "bg-pastel-buy";
-                        else if (sig2.includes("Sell")) bg2 = "bg-pastel-sell";
-                    }
-                    
                     html += `<div class="p-3 bg-white rounded border border-gray-200 break-inside-avoid">
                         <h4 class="font-bold text-pastel-text mb-1 uppercase">${title}</h4>
                         
                         <div class="text-sm mb-2 border-b pb-1 ${bg1} p-2 rounded">
                             <p class="font-semibold text-gray-700">Setup 1:</p>
                             <p><strong>Sig:</strong> ${sig1 || '-'} | <strong>Wick:</strong> ${wick1 || '-'}</p>
-                            <p><strong>TP1:</strong> ${tp1_1} | <strong>TP2:</strong> ${tp2_1}</p>
+                            <p><strong>TP1:</strong> ${tp1_1} ${tp2_1 ? `| <strong>TP2:</strong> ${tp2_1}` : ''}</p>
                             ${status1 ? `<div class="mt-1 text-xs font-bold text-blue-600 bg-white/50 p-1 rounded inline-block">${status1}</div>` : ''}
                         </div>`;
                     
                     if (toggle2 && (sig2 || wick2)) {
+                        let bg2 = "bg-gray-50"; 
+                        if (sig2.includes("Buy")) bg2 = "bg-pastel-buy";
+                        else if (sig2.includes("Sell")) bg2 = "bg-pastel-sell";
+                        
                         html += `<div class="text-sm mb-2 pb-1 ${bg2} p-2 rounded">
                             <p class="font-semibold text-gray-700">Setup 2:</p>
                             <p><strong>Sig:</strong> ${sig2 || '-'} | <strong>Wick:</strong> ${wick2 || '-'}</p>
@@ -555,12 +633,14 @@
 </head>
 <body class="text-gray-700">
 
+    <!-- Scroll To Top Button -->
     <button id="scrollTopBtn" onclick="scrollToTop()" class="bg-pastel-accent text-white shadow-lg hover:bg-green-600 no-print" title="เลื่อนขึ้นบนสุด">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
         </svg>
     </button>
 
+    <!-- Confirmation Modal (Direct Style Manipulation) -->
     <div id="confirmModal" onclick="if(event.target === this) closeModal()">
         <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 border-2 border-red-200">
             <h3 class="text-xl font-bold text-red-600 mb-2">ยืนยันการล้างข้อมูล</h3>
@@ -572,10 +652,12 @@
         </div>
     </div>
 
+    <!-- Dedicated Print Output Container (Hidden on Screen) -->
     <div id="print-output"></div>
 
     <div class="print-container max-w-4xl mx-auto p-4 md:p-6 bg-white shadow-lg min-h-screen my-4 rounded-xl border border-pastel-header">
         
+        <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-pastel-header no-print">
             <div>
                 <h1 class="text-2xl md:text-3xl font-bold text-pastel-text">Trading Journal</h1>
@@ -588,8 +670,10 @@
             </div>
         </header>
 
+        <!-- Main Form -->
         <div class="main-form-section space-y-8">
             
+            <!-- Daily Plan -->
             <section class="bg-pastel-bg p-4 rounded-xl border border-pastel-header">
                 <h2 class="text-xl font-bold text-pastel-text mb-4">วางแผนการเทรดประจำวัน</h2>
                 <div class="flex flex-col md:flex-row gap-4 items-end mb-4">
@@ -617,11 +701,13 @@
                 </div>
             </section>
 
+            <!-- Main Timeframes Analysis -->
             <section class="space-y-6">
                 <h2 class="text-2xl font-bold text-pastel-text border-l-4 border-pastel-accent pl-3">วิเคราะห์กราฟภาพรวม</h2>
 
+                <!-- Template for TF Block -->
                 <!-- MONTH -->
-                <div class="bg-white p-4 rounded-xl border border-pastel-header shadow-sm relative">
+                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 shadow-sm relative">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-lg font-bold text-pastel-text">MONTH (MN)</h3>
                         <div class="flex gap-3 items-center">
@@ -636,6 +722,7 @@
                         </div>
                     </div>
                     
+                    <!-- Setup 1 -->
                     <div id="mn-setup-1" class="setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
@@ -663,14 +750,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="mn-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 MN (+/- 500) : <span id="mn-tp1-val">...</span></span>
+                                <span class="font-semibold text-sm"><span id="mn-tp1-label">TP1 MN (+/- 500)</span> : <span id="mn-tp1-val">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="mn-tp1-check">TP</label>
                                     <input type="checkbox" id="mn-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
                             <div id="mn-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 MN (+/- 1000) : <span id="mn-tp2-val">...</span></span>
+                                <span class="font-semibold text-sm"><span id="mn-tp2-label">TP2 MN (+/- 1000)</span> : <span id="mn-tp2-val">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="mn-tp2-check">TP</label>
                                     <input type="checkbox" id="mn-tp2-check" class="tp-checkbox">
@@ -680,6 +767,7 @@
                         <div id="mn-msg" class="min-h-[1.5rem]"></div>
                     </div>
 
+                    <!-- Setup 2 -->
                     <div id="mn-setup-2" class="hidden setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
                         <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded shadow-sm">เงื่อนไขที่ 2 (Setup 2)</h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -698,14 +786,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="mn-tp1-box-2" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 (+/- 500) : <span id="mn-tp1-val-2">...</span></span>
+                                <span class="font-semibold text-sm"><span id="mn-tp1-label-2">TP1 (+/- 500)</span> : <span id="mn-tp1-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="mn-tp1-check-2">TP</label>
                                     <input type="checkbox" id="mn-tp1-check-2" class="tp-checkbox">
                                 </div>
                             </div>
                             <div id="mn-tp2-box-2" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 (+/- 1000) : <span id="mn-tp2-val-2">...</span></span>
+                                <span class="font-semibold text-sm"><span id="mn-tp2-label-2">TP2 (+/- 1000)</span> : <span id="mn-tp2-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="mn-tp2-check-2">TP</label>
                                     <input type="checkbox" id="mn-tp2-check-2" class="tp-checkbox">
@@ -717,7 +805,7 @@
                 </div>
 
                 <!-- WEEK -->
-                <div class="bg-white p-4 rounded-xl border border-pastel-header shadow-sm relative">
+                <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 shadow-sm relative">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-lg font-bold text-pastel-text">WEEK (WK)</h3>
                         <div class="flex gap-3 items-center">
@@ -732,6 +820,7 @@
                         </div>
                     </div>
 
+                    <!-- Setup 1 -->
                     <div id="wk-setup-1" class="setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
@@ -759,14 +848,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="wk-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 WK (+/- 150) : <span id="wk-tp1-val">...</span></span>
+                                <span class="font-semibold text-sm"><span id="wk-tp1-label">TP1 WK (+/- 150)</span> : <span id="wk-tp1-val">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="wk-tp1-check">TP</label>
                                     <input type="checkbox" id="wk-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
                             <div id="wk-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 WK (+/- 300) : <span id="wk-tp2-val">...</span></span>
+                                <span class="font-semibold text-sm"><span id="wk-tp2-label">TP2 WK (+/- 300)</span> : <span id="wk-tp2-val">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="wk-tp2-check">TP</label>
                                     <input type="checkbox" id="wk-tp2-check" class="tp-checkbox">
@@ -776,6 +865,7 @@
                         <div id="wk-msg" class="min-h-[1.5rem]"></div>
                     </div>
 
+                    <!-- Setup 2 -->
                     <div id="wk-setup-2" class="hidden setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
                         <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded shadow-sm">เงื่อนไขที่ 2 (Setup 2)</h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -794,14 +884,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="wk-tp1-box-2" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 (+/- 150) : <span id="wk-tp1-val-2">...</span></span>
+                                <span class="font-semibold text-sm"><span id="wk-tp1-label-2">TP1 (+/- 150)</span> : <span id="wk-tp1-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="wk-tp1-check-2">TP</label>
                                     <input type="checkbox" id="wk-tp1-check-2" class="tp-checkbox">
                                 </div>
                             </div>
                             <div id="wk-tp2-box-2" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 (+/- 300) : <span id="wk-tp2-val-2">...</span></span>
+                                <span class="font-semibold text-sm"><span id="wk-tp2-label-2">TP2 (+/- 300)</span> : <span id="wk-tp2-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="wk-tp2-check-2">TP</label>
                                     <input type="checkbox" id="wk-tp2-check-2" class="tp-checkbox">
@@ -813,7 +903,7 @@
                 </div>
 
                 <!-- DAY -->
-                <div class="bg-white p-4 rounded-xl border border-pastel-header shadow-sm relative">
+                <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm relative">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-lg font-bold text-pastel-text">DAY (D)</h3>
                         <div class="flex gap-3 items-center">
@@ -828,6 +918,7 @@
                         </div>
                     </div>
 
+                    <!-- Setup 1 -->
                     <div id="d-setup-1" class="setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
@@ -855,14 +946,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="d-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 Day (+/- 50) : <span id="d-tp1-val">...</span></span>
+                                <span class="font-semibold text-sm"><span id="d-tp1-label">TP1 Day (+/- 50)</span> : <span id="d-tp1-val">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="d-tp1-check">TP</label>
                                     <input type="checkbox" id="d-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
                             <div id="d-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 Day (+/- 100) : <span id="d-tp2-val">...</span></span>
+                                <span class="font-semibold text-sm"><span id="d-tp2-label">TP2 Day (+/- 100)</span> : <span id="d-tp2-val">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="d-tp2-check">TP</label>
                                     <input type="checkbox" id="d-tp2-check" class="tp-checkbox">
@@ -872,8 +963,9 @@
                         <div id="d-msg" class="min-h-[1.5rem]"></div>
                     </div>
 
+                    <!-- Setup 2 -->
                     <div id="d-setup-2" class="hidden setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
-                        <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded shadow-sm">เงื่อนไขที่ 2 (Setup 2)</h4>
+                        <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded">เงื่อนไขที่ 2 (Setup 2)</h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell (2)</label>
@@ -890,14 +982,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="d-tp1-box-2" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 (+/- 50) : <span id="d-tp1-val-2">...</span></span>
+                                <span class="font-semibold text-sm"><span id="d-tp1-label-2">TP1 (+/- 50)</span> : <span id="d-tp1-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="d-tp1-check-2">TP</label>
                                     <input type="checkbox" id="d-tp1-check-2" class="tp-checkbox">
                                 </div>
                             </div>
                             <div id="d-tp2-box-2" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 (+/- 100) : <span id="d-tp2-val-2">...</span></span>
+                                <span class="font-semibold text-sm"><span id="d-tp2-label-2">TP2 (+/- 100)</span> : <span id="d-tp2-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="d-tp2-check-2">TP</label>
                                     <input type="checkbox" id="d-tp2-check-2" class="tp-checkbox">
@@ -909,7 +1001,7 @@
                 </div>
 
                 <!-- H4 -->
-                <div class="bg-white p-4 rounded-xl border border-pastel-header shadow-sm relative">
+                <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 shadow-sm relative">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-lg font-bold text-pastel-text">H4</h3>
                         <div class="flex gap-3 items-center">
@@ -951,14 +1043,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="h4-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 H4 (+/- 15) : <span id="h4-tp1-val">...</span></span>
+                                <span class="font-semibold text-sm"><span id="h4-tp1-label">TP1 H4 (+/- 15)</span> : <span id="h4-tp1-val">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="h4-tp1-check">TP</label>
                                     <input type="checkbox" id="h4-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
                             <div id="h4-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 H4 (+/- 30) : <span id="h4-tp2-val">...</span></span>
+                                <span class="font-semibold text-sm"><span id="h4-tp2-label">TP2 H4 (+/- 30)</span> : <span id="h4-tp2-val">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="h4-tp2-check">TP</label>
                                     <input type="checkbox" id="h4-tp2-check" class="tp-checkbox">
@@ -986,14 +1078,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="h4-tp1-box-2" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 (+/- 15) : <span id="h4-tp1-val-2">...</span></span>
+                                <span class="font-semibold text-sm"><span id="h4-tp1-label-2">TP1 (+/- 15)</span> : <span id="h4-tp1-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="h4-tp1-check-2">TP</label>
                                     <input type="checkbox" id="h4-tp1-check-2" class="tp-checkbox">
                                 </div>
                             </div>
                             <div id="h4-tp2-box-2" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 (+/- 30) : <span id="h4-tp2-val-2">...</span></span>
+                                <span class="font-semibold text-sm"><span id="h4-tp2-label-2">TP2 (+/- 30)</span> : <span id="h4-tp2-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="h4-tp2-check-2">TP</label>
                                     <input type="checkbox" id="h4-tp2-check-2" class="tp-checkbox">
@@ -1005,17 +1097,11 @@
                 </div>
 
                 <!-- H1 -->
-                <div class="bg-white p-4 rounded-xl border border-pastel-header shadow-sm relative">
+                <div class="bg-rose-50 p-4 rounded-xl border border-rose-200 shadow-sm relative">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-lg font-bold text-pastel-text">H1</h3>
-                        <div class="flex gap-3 items-center">
-                            <label class="flex items-center cursor-pointer text-sm select-none">
-                                <span class="mr-2 font-medium text-gray-600">Setup 2</span>
-                                <div class="relative">
-                                    <input type="checkbox" id="h1-toggle-2" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-pastel-toggle_off peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pastel-toggle_on"></div>
-                                </div>
-                            </label>
+                        <!-- No toggle for Setup 2 in H1 as per latest spec -->
+                         <div class="flex gap-3 items-center">
                             <button onclick="clearSection('h1')" class="text-xs text-red-500 hover:text-red-700 underline">CLEAR H1</button>
                         </div>
                     </div>
@@ -1047,56 +1133,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="h1-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 H1 (+/- 10) : <span id="h1-tp1-val">...</span></span>
+                                <span class="font-semibold text-sm"><span id="h1-tp1-label">TP1 H1 (+/- 10)</span> : <span id="h1-tp1-val">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="h1-tp1-check">TP</label>
                                     <input type="checkbox" id="h1-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
-                            <div id="h1-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 H1 (+/- 20) : <span id="h1-tp2-val">...</span></span>
-                                <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="h1-tp2-check">TP</label>
-                                    <input type="checkbox" id="h1-tp2-check" class="tp-checkbox">
-                                </div>
-                            </div>
                         </div>
                         <div id="h1-msg" class="min-h-[1.5rem]"></div>
-                    </div>
-
-                    <div id="h1-setup-2" class="hidden setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
-                        <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded shadow-sm">เงื่อนไขที่ 2 (Setup 2)</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell (2)</label>
-                                <select id="h1-sig-2" class="w-full p-2 rounded">
-                                    <option value="">เลือก...</option>
-                                    <option value="Buy P1">Buy P1</option><option value="Buy P2">Buy P2</option><option value="Buy P3">Buy P3</option>
-                                    <option value="Sell P1">Sell P1</option><option value="Sell P2">Sell P2</option><option value="Sell P3">Sell P3</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig (2)</label>
-                                <input type="number" step="0.01" id="h1-wick-2" class="w-full p-2 rounded" placeholder="ราคา">
-                            </div>
-                        </div>
-                        <div class="space-y-2">
-                            <div id="h1-tp1-box-2" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 (+/- 10) : <span id="h1-tp1-val-2">...</span></span>
-                                <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="h1-tp1-check-2">TP</label>
-                                    <input type="checkbox" id="h1-tp1-check-2" class="tp-checkbox">
-                                </div>
-                            </div>
-                            <div id="h1-tp2-box-2" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 (+/- 20) : <span id="h1-tp2-val-2">...</span></span>
-                                <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="h1-tp2-check-2">TP</label>
-                                    <input type="checkbox" id="h1-tp2-check-2" class="tp-checkbox">
-                                </div>
-                            </div>
-                        </div>
-                        <div id="h1-msg-2" class="min-h-[1.5rem]"></div>
                     </div>
                 </div>
 
