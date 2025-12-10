@@ -6,6 +6,10 @@
     <title>Gold Trading Journal</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for Graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Datalabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -143,6 +147,14 @@
                 grid-template-columns: 1fr 1fr;
                 gap: 1rem;
             }
+            
+            /* Ensure chart is visible in print */
+            #print-chart-container {
+                display: block !important;
+                width: 100% !important;
+                height: 600px !important; /* Increased height for print */
+                page-break-inside: avoid;
+            }
         }
         
         /* Input Styles */
@@ -179,6 +191,10 @@
         // --- Variables ---
         let db, dataDocRef;
         const publicDocPath = "/publicJournal/sharedData";
+        let mainChart = null; // Chart instance
+
+        // Register Chart.js Plugin
+        Chart.register(ChartDataLabels);
 
         // --- Init ---
         document.addEventListener('DOMContentLoaded', async () => {
@@ -524,12 +540,35 @@
 
             const noteContent = document.getElementById('daily-note').value;
             
+            // Get Graph Canvas Image
+            let chartImage = '';
+            if (mainChart) {
+                // Convert chart to base64 image to ensure it prints
+                const chartCanvas = document.getElementById('tradeChart');
+                chartImage = `<div id="print-chart-container" class="mt-4 mb-4"><img id="print-chart-img" src="${chartCanvas.toDataURL()}" /></div>`;
+            }
+
+            // Get Legend Content
+            const legendDiv = document.getElementById('chart-legend');
+            const legendHTML = legendDiv ? legendDiv.innerHTML : "";
+
             // Populate the dedicated print area
             const printArea = document.getElementById('print-output');
             let printHTML = `
                 <h1 class="text-2xl font-bold text-center mb-4 text-pastel-text">Trading Journal Summary</h1>
                 <p class="text-center mb-6 text-gray-600">วันที่: ${document.getElementById('date').value || '-'}</p>
                 ${summaryHTML}
+                
+                <div class="mt-6 border-t pt-4">
+                     <h3 class="text-xl font-bold text-pastel-text mb-4">กราฟสรุปสถานะ</h3>
+                     <div class="grid grid-cols-2 gap-4">
+                        <div class="w-full">${chartImage}</div>
+                        <div id="print-chart-legend" class="w-full text-sm border p-4 rounded bg-gray-50">
+                             <h4 class="font-bold mb-2">รายละเอียดกราฟ</h4>
+                            ${legendHTML}
+                        </div>
+                     </div>
+                </div>
             `;
             
             if(noteContent) {
@@ -545,7 +584,7 @@
             // Wait a moment for rendering then print
             setTimeout(() => {
                 window.print();
-            }, 300);
+            }, 500); // Increased timeout slightly for image rendering
         };
         
         // Scroll To Top Logic
@@ -574,9 +613,11 @@
 
         function updateSummary() {
             const summaryDiv = document.getElementById('summary-content');
+            const legendDiv = document.getElementById('chart-legend');
             if(!summaryDiv) return;
             
             let html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+            let legendHTML = '';
             
             // Daily Frame Summary
             html += `<div class="p-3 bg-white rounded border border-gray-200 break-inside-avoid">
@@ -586,36 +627,50 @@
                 <p>รับหลัก: ${document.getElementById('dr-sup').innerText}</p>
             </div>`;
 
+            // Prepare Data for Chart
+            const chartData = {
+                labels: ['Wick', 'TP1', 'TP2'], // X-Axis labels
+                datasets: []
+            };
+
             // Main TFs
             ['mn', 'wk', 'd', 'h4', 'h1'].forEach(tf => {
                 // Setup 1
                 const sig1 = document.getElementById(`${tf}-sig`).value;
-                const wick1 = document.getElementById(`${tf}-wick`).value;
-                const tp1_1 = document.getElementById(`${tf}-tp1-val`).innerText;
-                const tp2_1 = document.getElementById(`${tf}-tp2-val`) ? document.getElementById(`${tf}-tp2-val`).innerText : null; // Check for H1 TP2 which doesn't exist
+                const wick1 = parseFloat(document.getElementById(`${tf}-wick`).value);
+                const tp1_1 = parseFloat(document.getElementById(`${tf}-tp1-val`).innerText);
+                const tp1Check1 = document.getElementById(`${tf}-tp1-check`).checked;
+                
+                const tp2El = document.getElementById(`${tf}-tp2-val`);
+                const tp2_1 = tp2El ? parseFloat(tp2El.innerText) : null;
+                const tp2Check1 = document.getElementById(`${tf}-tp2-check`) ? document.getElementById(`${tf}-tp2-check`).checked : false;
+
                 const status1 = document.getElementById(`${tf}-msg`).innerHTML;
                 
-                // Setup 2
+                // Setup 2 (Check if exists for this TF)
                 let hasSetup2 = document.getElementById(`${tf}-toggle-2`);
-                let toggle2 = false, sig2 = '', wick2 = '', tp1_2 = '', tp2_2 = '', status2 = '';
+                let toggle2 = false, sig2 = '', wick2 = NaN, tp1_2 = NaN, tp2_2 = NaN, status2 = '', tp1Check2=false, tp2Check2=false;
 
                 if (hasSetup2) {
                     toggle2 = hasSetup2.checked;
                     sig2 = document.getElementById(`${tf}-sig-2`).value;
-                    wick2 = document.getElementById(`${tf}-wick-2`).value;
-                    tp1_2 = document.getElementById(`${tf}-tp1-val-2`).innerText;
-                    tp2_2 = document.getElementById(`${tf}-tp2-val-2`).innerText;
+                    wick2 = parseFloat(document.getElementById(`${tf}-wick-2`).value);
+                    tp1_2 = parseFloat(document.getElementById(`${tf}-tp1-val-2`).innerText);
+                    tp2_2 = parseFloat(document.getElementById(`${tf}-tp2-val-2`).innerText);
                     status2 = document.getElementById(`${tf}-msg-2`).innerHTML;
+                    tp1Check2 = document.getElementById(`${tf}-tp1-check-2`).checked;
+                    tp2Check2 = document.getElementById(`${tf}-tp2-check-2`).checked;
                 }
 
                 const low = document.getElementById(`${tf}-low`).value;
                 const high = document.getElementById(`${tf}-high`).value;
 
-                if(sig1 || wick1 || (toggle2 && (sig2 || wick2))) {
+                if(sig1 || !isNaN(wick1) || (toggle2 && (sig2 || !isNaN(wick2)))) {
                     let title = tf.toUpperCase();
-                    if(tf === 'mn') title = "MONTH (MN)";
-                    else if(tf === 'wk') title = "WEEK (WK)";
-                    else if(tf === 'd') title = "DAY (D)";
+                    let titleLabel = title; // For Graph Label
+                    if(tf === 'mn') { title = "MONTH (MN)"; titleLabel = "MN"; }
+                    else if(tf === 'wk') { title = "WEEK (WK)"; titleLabel = "WK"; }
+                    else if(tf === 'd') { title = "DAY (D)"; titleLabel = "D"; }
 
                     let bg1 = "bg-white"; 
                     if (sig1 && sig1.includes("Buy")) bg1 = "bg-pastel-buy";
@@ -626,22 +681,109 @@
                         
                         <div class="text-sm mb-2 border-b pb-1 ${bg1} p-2 rounded">
                             <p class="font-semibold text-gray-700">Setup 1:</p>
-                            <p><strong>Sig:</strong> ${sig1 || '-'} | <strong>Wick:</strong> ${wick1 || '-'}</p>
-                            <p><strong>TP1:</strong> ${tp1_1} ${tp2_1 ? `| <strong>TP2:</strong> ${tp2_1}` : ''}</p>
+                            <p><strong>Sig:</strong> ${sig1 || '-'} | <strong>Wick:</strong> ${isNaN(wick1) ? '-' : wick1}</p>
+                            <p><strong>TP1:</strong> ${isNaN(tp1_1) ? '-' : tp1_1} ${tp2El ? `| <strong>TP2:</strong> ${isNaN(tp2_1) ? '-' : tp2_1}` : ''}</p>
                             ${status1 ? `<div class="mt-1 text-xs font-bold text-blue-600 bg-white/50 p-1 rounded inline-block">${status1}</div>` : ''}
                         </div>`;
                     
-                    if (toggle2 && (sig2 || wick2)) {
+                    // Chart Data Setup 1
+                    if (sig1 && !isNaN(wick1)) {
+                         let dataPoints = [wick1, tp1_1];
+                         if (tp2_1 !== null) dataPoints.push(tp2_1); // H1 has no TP2
+                         
+                         // Check status array for styling points
+                         let pointStatus = [false, tp1Check1];
+                         if(tp2_1 !== null) pointStatus.push(tp2Check1);
+
+                         // Pastel colors for lines
+                         let color = '#000000'; // Default black
+                         if (tf === 'mn') color = '#9fa8da'; // Pastel Indigo
+                         else if (tf === 'wk') color = '#ce93d8'; // Pastel Purple
+                         else if (tf === 'd') color = '#80cbc4'; // Pastel Emerald
+                         else if (tf === 'h4') color = '#ffcc80'; // Pastel Amber
+                         else if (tf === 'h1') color = '#f48fb1'; // Pastel Rose
+
+                         chartData.datasets.push({
+                            label: `${titleLabel}-1`,
+                            data: dataPoints,
+                            borderColor: color,
+                            backgroundColor: color,
+                            fill: false,
+                            tension: 0.1,
+                            pointStyle: pointStatus.map((checked, i) => i===0 ? 'circle' : (checked ? 'triangle' : 'circle')), // Changed star to triangle
+                            pointBackgroundColor: pointStatus.map((checked, i) => checked ? '#1b5e20' : color), // Dark Green if checked
+                            pointBorderColor: pointStatus.map((checked, i) => checked ? '#1b5e20' : color), // Dark Green if checked
+                            pointRadius: pointStatus.map((checked, i) => i===0 ? 4 : (checked ? 10 : 5)),
+                            // Datalabels disabled here as requested
+                            datalabels: {
+                                display: false
+                            }
+                        });
+
+                        // Add to Legend
+                        legendHTML += `
+                        <div class="mb-2 p-1.5 border rounded border-l-4 shadow-sm" style="border-left-color: ${color};">
+                            <div class="font-bold text-xs text-${color}" style="color: ${color}">${titleLabel}-1 (${sig1})</div>
+                            <div class="grid grid-cols-3 gap-1 mt-0.5 text-xs">
+                                <div><span class="text-gray-500 block">Wick</span><span class="font-medium">${wick1}</span></div>
+                                <div><span class="text-gray-500 block">TP1</span><span class="font-medium">${tp1_1} ${tp1Check1?'✅':''}</span></div>
+                                ${tp2_1 !== null ? `<div><span class="text-gray-500 block">TP2</span><span class="font-medium">${tp2_1} ${tp2Check1?'✅':''}</span></div>` : ''}
+                            </div>
+                        </div>`;
+                    }
+
+                    if (toggle2 && (sig2 || !isNaN(wick2))) {
                         let bg2 = "bg-gray-50"; 
                         if (sig2.includes("Buy")) bg2 = "bg-pastel-buy";
                         else if (sig2.includes("Sell")) bg2 = "bg-pastel-sell";
                         
                         html += `<div class="text-sm mb-2 pb-1 ${bg2} p-2 rounded">
                             <p class="font-semibold text-gray-700">Setup 2:</p>
-                            <p><strong>Sig:</strong> ${sig2 || '-'} | <strong>Wick:</strong> ${wick2 || '-'}</p>
-                            <p><strong>TP1:</strong> ${tp1_2} | <strong>TP2:</strong> ${tp2_2}</p>
+                            <p><strong>Sig:</strong> ${sig2 || '-'} | <strong>Wick:</strong> ${isNaN(wick2) ? '-' : wick2}</p>
+                            <p><strong>TP1:</strong> ${isNaN(tp1_2) ? '-' : tp1_2} | <strong>TP2:</strong> ${isNaN(tp2_2) ? '-' : tp2_2}</p>
                             ${status2 ? `<div class="mt-1 text-xs font-bold text-blue-600 bg-white/50 p-1 rounded inline-block">${status2}</div>` : ''}
                         </div>`;
+                        
+                        // Chart Data Setup 2
+                         if (sig2 && !isNaN(wick2)) {
+                             let color = '#000000'; 
+                             if (tf === 'mn') color = '#7986cb'; 
+                             else if (tf === 'wk') color = '#ba68c8'; 
+                             else if (tf === 'd') color = '#4db6ac'; 
+                             else if (tf === 'h4') color = '#ffb74d';
+                             // H1 has no setup 2
+
+                             let pointStatus2 = [false, tp1Check2, tp2Check2];
+
+                             chartData.datasets.push({
+                                label: `${titleLabel}-2`,
+                                data: [wick2, tp1_2, tp2_2],
+                                borderColor: color,
+                                backgroundColor: color,
+                                borderDash: [5, 5], // Dashed line for Setup 2
+                                fill: false,
+                                tension: 0.1,
+                                pointStyle: pointStatus2.map((checked, i) => i===0 ? 'circle' : (checked ? 'triangle' : 'circle')), // Changed star to triangle
+                                pointBackgroundColor: pointStatus2.map((checked, i) => checked ? '#1b5e20' : color), // Dark Green if checked
+                                pointBorderColor: pointStatus2.map((checked, i) => checked ? '#1b5e20' : color), // Dark Green if checked
+                                pointRadius: pointStatus2.map((checked, i) => i===0 ? 4 : (checked ? 10 : 5)),
+                                // Datalabels disabled here as requested
+                                datalabels: {
+                                    display: false
+                                }
+                            });
+
+                             // Add to Legend
+                            legendHTML += `
+                            <div class="mb-2 p-1.5 border rounded border-l-4 shadow-sm border-dashed" style="border-left-color: ${color};">
+                                <div class="font-bold text-xs text-${color}" style="color: ${color}">${titleLabel}-2 (${sig2})</div>
+                                <div class="grid grid-cols-3 gap-1 mt-0.5 text-xs">
+                                    <div><span class="text-gray-500 block">Wick</span><span class="font-medium">${wick2}</span></div>
+                                    <div><span class="text-gray-500 block">TP1</span><span class="font-medium">${tp1_2} ${tp1Check2?'✅':''}</span></div>
+                                    <div><span class="text-gray-500 block">TP2</span><span class="font-medium">${tp2_2} ${tp2Check2?'✅':''}</span></div>
+                                </div>
+                            </div>`;
+                        }
                     }
 
                     html += `<div class="text-sm pt-1 px-2">
@@ -653,6 +795,68 @@
 
             html += `</div>`; 
             summaryDiv.innerHTML = html;
+            
+            // Populate Legend
+            if (legendDiv) legendDiv.innerHTML = legendHTML || "<p class='text-gray-500 text-center'>ไม่มีข้อมูลกราฟ</p>";
+
+            // Render Chart
+            renderChart(chartData);
+        }
+
+        function renderChart(data) {
+            const ctx = document.getElementById('tradeChart').getContext('2d');
+            
+            // If chart exists, destroy it to re-render
+            if (mainChart) {
+                mainChart.destroy();
+            }
+
+            if (data.datasets.length === 0) return; // No data to chart
+
+            mainChart = new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 20, 
+                            right: 20,
+                            left: 20,
+                            bottom: 20
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false, // Hide default legend, we use custom side panel
+                        },
+                        title: {
+                            display: true,
+                            text: 'Trading Setup Visualization',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        // Disable datalabels to remove text from points
+                        datalabels: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            offset: true
+                        },
+                        y: {
+                            position: 'right', // Move Y-axis to right
+                            title: {
+                                display: true,
+                                text: 'Price'
+                            }
+                        }
+                    }
+                }
+            });
         }
 
     </script>
@@ -1184,6 +1388,17 @@
             <!-- Summary Footer -->
             <section id="summary-section" class="summary-section bg-white p-6 rounded-xl border border-pastel-header shadow-lg mt-8">
                 <h2 class="text-2xl font-bold text-center text-pastel-text mb-4 border-b pb-2">สรุปภาพรวม Trading Journal</h2>
+                
+                <!-- Chart Container -->
+                <div class="flex flex-col lg:flex-row gap-4 mb-6">
+                    <div class="w-full lg:w-3/4 h-64 md:h-[400px] relative border rounded p-2">
+                        <canvas id="tradeChart"></canvas>
+                    </div>
+                    <div id="chart-legend" class="w-full lg:w-1/4 h-64 md:h-[400px] overflow-y-auto p-4 border rounded bg-gray-50 text-sm">
+                        <!-- Dynamic Legend Content -->
+                    </div>
+                </div>
+
                 <div id="summary-content">Loading...</div>
                 <!-- Hidden Note Container for Print Only -->
                 <div id="print-daily-note" class="hidden mt-4 pt-4 border-t border-gray-300"></div>
