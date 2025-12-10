@@ -439,6 +439,7 @@
         async function clearSection(prefix) {
             // Find fields starting with prefix
             fields.forEach(key => {
+                // Check if key starts with prefix (e.g. 'h4-')
                 if (key.startsWith(prefix + '-')) {
                     const el = document.getElementById(key);
                     if(el) {
@@ -448,9 +449,11 @@
                 }
             });
             
+            // Recalc UI immediately (which will hide setup 2 because toggle is unchecked) then save
             recalcAll();
             await saveData();
             
+            // Show feedback
             const statusEl = document.getElementById('status-indicator');
             statusEl.innerText = `สถานะ: ล้างข้อมูล ${prefix.toUpperCase()} เรียบร้อย`;
             statusEl.className = "text-sm text-blue-600 font-medium";
@@ -460,6 +463,7 @@
             }, 1500);
         }
 
+        // Global functions for HTML
         window.clearSection = clearSection;
         window.saveData = saveData;
         window.setDate = () => {
@@ -469,6 +473,7 @@
             saveData();
         };
 
+        // --- FIXED: Modal Functions ---
         window.openClearAllModal = () => {
             const modal = document.getElementById('confirmModal');
             modal.style.display = 'flex';
@@ -480,7 +485,10 @@
         };
 
         window.confirmClearAll = async () => {
+            // Close modal immediately
             window.closeModal();
+            
+            // Clear all fields
             fields.forEach(key => {
                 const el = document.getElementById(key);
                 if(el) {
@@ -488,8 +496,12 @@
                     else el.value = '';
                 }
             });
+            
+            // Recalculate and Save
             recalcAll();
             await saveData();
+            
+            // Feedback
             const statusEl = document.getElementById('status-indicator');
             statusEl.innerText = `สถานะ: ล้างข้อมูลทั้งหมดเรียบร้อยแล้ว`;
             statusEl.className = "text-sm text-red-600 font-medium";
@@ -500,16 +512,26 @@
         };
         
         window.printSummary = () => {
+            // Force update summary first
             updateSummary();
+            
+            // Get content from summary div
             let summaryHTML = document.getElementById('summary-content').innerHTML;
+            
+            // Replace bg-white with bg-pastel-bg for the print version to enable pastel green background
+            // Ensure we only replace if present (for daily frame)
             summaryHTML = summaryHTML.replace(/bg-white/g, 'bg-pastel-bg');
+
             const noteContent = document.getElementById('daily-note').value;
+            
+            // Populate the dedicated print area
             const printArea = document.getElementById('print-output');
             let printHTML = `
                 <h1 class="text-2xl font-bold text-center mb-4 text-pastel-text">Trading Journal Summary</h1>
                 <p class="text-center mb-6 text-gray-600">วันที่: ${document.getElementById('date').value || '-'}</p>
                 ${summaryHTML}
             `;
+            
             if(noteContent) {
                 printHTML += `
                 <div class="mt-6 border-t pt-4">
@@ -517,12 +539,16 @@
                     <div class="p-3 border rounded text-sm text-gray-800 whitespace-pre-wrap bg-pastel-bg">${noteContent}</div>
                 </div>`;
             }
+            
             printArea.innerHTML = printHTML;
+
+            // Wait a moment for rendering then print
             setTimeout(() => {
                 window.print();
             }, 300);
         };
         
+        // Scroll To Top Logic
         window.scrollToTop = () => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -552,6 +578,7 @@
             
             let html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
             
+            // Daily Frame Summary
             html += `<div class="p-3 bg-white rounded border border-gray-200 break-inside-avoid">
                 <h4 class="font-bold text-pastel-text mb-2">กรอบวัน</h4>
                 <p>ราคา: ${document.getElementById('dr-price').value || '-'}</p>
@@ -559,17 +586,16 @@
                 <p>รับหลัก: ${document.getElementById('dr-sup').innerText}</p>
             </div>`;
 
+            // Main TFs
             ['mn', 'wk', 'd', 'h4', 'h1'].forEach(tf => {
+                // Setup 1
                 const sig1 = document.getElementById(`${tf}-sig`).value;
                 const wick1 = document.getElementById(`${tf}-wick`).value;
                 const tp1_1 = document.getElementById(`${tf}-tp1-val`).innerText;
+                const tp2_1 = document.getElementById(`${tf}-tp2-val`) ? document.getElementById(`${tf}-tp2-val`).innerText : null; // Check for H1 TP2 which doesn't exist
                 const status1 = document.getElementById(`${tf}-msg`).innerHTML;
                 
-                // Get TP2 if exists (not for H1)
-                const tp2El = document.getElementById(`${tf}-tp2-val`);
-                const tp2_1 = tp2El ? tp2El.innerText : null;
-
-                // Setup 2 (only for MN, WK, D, H4)
+                // Setup 2
                 let hasSetup2 = document.getElementById(`${tf}-toggle-2`);
                 let toggle2 = false, sig2 = '', wick2 = '', tp1_2 = '', tp2_2 = '', status2 = '';
 
@@ -664,7 +690,7 @@
                 <p class="text-sm text-gray-500" id="status-indicator">สถานะ: กำลังเชื่อมต่อ...</p>
             </div>
             <div class="mt-4 md:mt-0 flex gap-2 flex-wrap justify-center">
-                <button onclick="saveData()" class="px-4 py-2 bg-pastel-accent text-white font-bold rounded-lg shadow hover:bg-green-600 transition">บันทึก Cloud</button>
+                <!-- Removed Cloud Save button as requested -->
                 <button onclick="printSummary()" class="px-4 py-2 bg-purple-500 text-white font-bold rounded-lg shadow hover:bg-purple-600 transition">พิมพ์(สรุป) PDF</button>
                 <button onclick="openClearAllModal()" class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow hover:bg-red-600 transition">ล้างทั้งหมด</button>
             </div>
@@ -723,7 +749,7 @@
                     </div>
                     
                     <!-- Setup 1 -->
-                    <div id="mn-setup-1" class="setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
+                    <div id="mn-setup-1">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell</label>
@@ -821,14 +847,18 @@
                     </div>
 
                     <!-- Setup 1 -->
-                    <div id="wk-setup-1" class="setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
+                    <div id="wk-setup-1">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell</label>
                                 <select id="wk-sig" class="w-full p-2 rounded">
                                     <option value="">เลือก...</option>
-                                    <option value="Buy P1">Buy P1</option><option value="Buy P2">Buy P2</option><option value="Buy P3">Buy P3</option>
-                                    <option value="Sell P1">Sell P1</option><option value="Sell P2">Sell P2</option><option value="Sell P3">Sell P3</option>
+                                    <option value="Buy P1">Buy P1</option>
+                                    <option value="Buy P2">Buy P2</option>
+                                    <option value="Buy P3">Buy P3</option>
+                                    <option value="Sell P1">Sell P1</option>
+                                    <option value="Sell P2">Sell P2</option>
+                                    <option value="Sell P3">Sell P3</option>
                                 </select>
                             </div>
                             <div>
@@ -867,7 +897,7 @@
 
                     <!-- Setup 2 -->
                     <div id="wk-setup-2" class="hidden setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
-                        <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded shadow-sm">เงื่อนไขที่ 2 (Setup 2)</h4>
+                        <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded">เงื่อนไขที่ 2 (Setup 2)</h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell (2)</label>
@@ -919,7 +949,7 @@
                     </div>
 
                     <!-- Setup 1 -->
-                    <div id="d-setup-1" class="setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
+                    <div id="d-setup-1">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell</label>
@@ -964,7 +994,7 @@
                     </div>
 
                     <!-- Setup 2 -->
-                    <div id="d-setup-2" class="hidden setup-container p-4 rounded-lg mb-4 border transition-colors duration-300">
+                    <div id="d-setup-2" class="hidden mt-4 pt-4 border-t-2 border-dashed border-emerald-200">
                         <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded">เงื่อนไขที่ 2 (Setup 2)</h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
@@ -1100,8 +1130,7 @@
                 <div class="bg-rose-50 p-4 rounded-xl border border-rose-200 shadow-sm relative">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-lg font-bold text-pastel-text">H1</h3>
-                        <!-- No toggle for Setup 2 in H1 as per latest spec -->
-                         <div class="flex gap-3 items-center">
+                        <div class="flex gap-3 items-center">
                             <button onclick="clearSection('h1')" class="text-xs text-red-500 hover:text-red-700 underline">CLEAR H1</button>
                         </div>
                     </div>
