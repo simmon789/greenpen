@@ -33,6 +33,10 @@
                             toggle_off: '#000000', /* Black (Off) */
                             toggle_on: '#81d4fa'   /* Blue Pastel (On) */
                         }
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'glow': '0 0 15px rgba(139, 195, 74, 0.3)',
                     }
                 }
             }
@@ -41,7 +45,7 @@
 
     <style>
         body {
-            background-color: #f1f8e9; /* Fallback */
+            background-color: #f4f9f4; /* ปรับสีพื้นหลังให้ดูสบายตาขึ้น */
             scroll-behavior: smooth;
         }
         
@@ -51,16 +55,25 @@
             height: 1.25rem;
             accent-color: #558b2f;
             cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .tp-checkbox:checked {
+            transform: scale(1.1);
         }
 
-        /* TP Block Styling */
+        /* TP Block Styling - เพิ่มมิติ */
         .tp-box {
-            transition: all 0.3s ease;
-            background-color: white; /* Ensure white background for text readability */
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-        .tp-box.buy-mode { background-color: #c8e6c9; border-color: #a5d6a7; color: #1b5e20; }
-        .tp-box.sell-mode { background-color: #f8bbd0; border-color: #f48fb1; color: #880e4f; }
-        .tp-box.done-mode { background-color: #cfd8dc; border-color: #b0bec5; color: #455a64; text-decoration: line-through; }
+        .tp-box:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+        .tp-box.buy-mode { background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-color: #a5d6a7; color: #1b5e20; }
+        .tp-box.sell-mode { background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%); border-color: #f48fb1; color: #880e4f; }
+        .tp-box.done-mode { background-color: #eceff1; border-color: #cfd8dc; color: #90a4ae; text-decoration: line-through; opacity: 0.8; box-shadow: none; }
 
         /* Scroll to Top Button */
         #scrollTopBtn {
@@ -74,16 +87,18 @@
             padding: 15px;
             border-radius: 50%;
             font-size: 18px;
-            transition: opacity 0.3s, transform 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             opacity: 0;
             pointer-events: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
         #scrollTopBtn.visible {
             opacity: 1;
             pointer-events: auto;
         }
         #scrollTopBtn.visible:hover {
-            transform: scale(1.1);
+            transform: scale(1.1) translateY(-3px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
         }
 
         /* Confirmation Modal Styles */
@@ -99,7 +114,7 @@
             background-color: rgba(0,0,0,0.5); /* Black w/ opacity */
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(4px);
         }
 
         /* Dedicated Print Area - Hidden on Screen */
@@ -129,6 +144,8 @@
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                box-shadow: none !important; /* ลบเงาตอนพิมพ์เพื่อความสะอาด */
+                text-shadow: none !important;
             }
 
             /* Layout adjustments for print */
@@ -139,16 +156,18 @@
             }
         }
         
-        /* Input Styles */
+        /* Input Styles - เพิ่มเงาและ Focus Effect */
         input[type="number"], input[type="text"], select, textarea {
-            border: 1px solid #c5e1a5;
+            border: 1px solid #e0e0e0;
             background-color: #ffffff;
-            transition: border-color 0.2s;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
         }
         input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: #7cb342;
-            box-shadow: 0 0 0 3px rgba(124, 179, 66, 0.2);
+            border-color: #8bc34a;
+            box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.2), inset 0 1px 2px rgba(0,0,0,0.05);
+            transform: translateY(-1px);
         }
     </style>
 
@@ -188,7 +207,7 @@
                     if (docSnap.exists()) {
                         loadDataToUI(docSnap.data());
                         document.getElementById('status-indicator').innerText = "สถานะ: เชื่อมต่อแล้ว (Sync)";
-                        document.getElementById('status-indicator').className = "text-sm text-green-700 font-medium";
+                        document.getElementById('status-indicator').className = "text-sm text-green-700 font-medium bg-green-50 px-2 py-1 rounded-full border border-green-200";
                     }
                 });
 
@@ -197,7 +216,7 @@
             } catch (e) {
                 console.error("Firebase Error:", e);
                 document.getElementById('status-indicator').innerText = "สถานะ: ไม่สามารถเชื่อมต่อได้";
-                document.getElementById('status-indicator').className = "text-sm text-red-600 font-medium";
+                document.getElementById('status-indicator').className = "text-sm text-red-600 font-medium bg-red-50 px-2 py-1 rounded-full border border-red-200";
             }
         });
 
@@ -416,7 +435,7 @@
             statusEl.className = "text-sm text-blue-600 font-medium";
             setTimeout(() => {
                  statusEl.innerText = "สถานะ: เชื่อมต่อแล้ว (Sync)";
-                 statusEl.className = "text-sm text-green-700 font-medium";
+                 statusEl.className = "text-sm text-green-700 font-medium bg-green-50 px-2 py-1 rounded-full border border-green-200";
             }, 1500);
         }
 
@@ -456,7 +475,7 @@
             statusEl.className = "text-sm text-red-600 font-medium";
             setTimeout(() => {
                  statusEl.innerText = "สถานะ: เชื่อมต่อแล้ว (Sync)";
-                 statusEl.className = "text-sm text-green-700 font-medium";
+                 statusEl.className = "text-sm text-green-700 font-medium bg-green-50 px-2 py-1 rounded-full border border-green-200";
             }, 2000);
         };
         
@@ -511,17 +530,17 @@
 
         function getTrendIcon(sig) {
             if (!sig) return '<span class="text-gray-300">-</span>';
-            if (sig.includes("Buy")) return '<span class="text-green-600 font-bold">▲ BUY</span>';
-            if (sig.includes("Sell")) return '<span class="text-rose-600 font-bold">▼ SELL</span>';
+            if (sig.includes("Buy")) return '<span class="text-green-600 font-bold drop-shadow-sm">▲ BUY</span>';
+            if (sig.includes("Sell")) return '<span class="text-rose-600 font-bold drop-shadow-sm">▼ SELL</span>';
             return '-';
         }
 
         function getStatusBadge(htmlContent) {
-            if (!htmlContent) return '<span class="px-2 py-1 text-xs font-bold text-blue-500 bg-blue-100 rounded-full">Active</span>';
-            if (htmlContent.includes("✅✅")) return '<span class="px-2 py-1 text-xs font-bold text-white bg-green-500 rounded-full shadow">Complete</span>';
-            if (htmlContent.includes("✅")) return '<span class="px-2 py-1 text-xs font-bold text-white bg-orange-400 rounded-full shadow">TP1 Hit</span>';
-            if (htmlContent.includes("รอไส้")) return '<span class="px-2 py-1 text-xs font-bold text-gray-500 bg-gray-200 rounded-full">Waiting</span>';
-            return '<span class="px-2 py-1 text-xs font-bold text-blue-500 bg-blue-100 rounded-full">Active</span>';
+            if (!htmlContent) return '<span class="px-2 py-1 text-xs font-bold text-blue-500 bg-blue-100 rounded-full shadow-sm">Active</span>';
+            if (htmlContent.includes("✅✅")) return '<span class="px-2 py-1 text-xs font-bold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-full shadow-md">Complete</span>';
+            if (htmlContent.includes("✅")) return '<span class="px-2 py-1 text-xs font-bold text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-full shadow-md">TP1 Hit</span>';
+            if (htmlContent.includes("รอไส้")) return '<span class="px-2 py-1 text-xs font-bold text-gray-500 bg-gray-200 rounded-full shadow-inner">Waiting</span>';
+            return '<span class="px-2 py-1 text-xs font-bold text-blue-500 bg-blue-100 rounded-full shadow-sm">Active</span>';
         }
 
         function updateSummary() {
@@ -554,32 +573,32 @@
 
             let sentimentHTML = '';
             if(buyCount > sellCount) {
-                sentimentHTML = `<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm flex justify-between items-center">
+                sentimentHTML = `<div class="bg-gradient-to-r from-green-50 to-white border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-lg shadow-md flex justify-between items-center transition-all hover:shadow-lg">
                     <div>
-                        <p class="font-bold text-lg">🐂 Bullish Sentiment (มองขึ้น)</p>
-                        <p class="text-sm">แรงซื้อมีความได้เปรียบในภาพรวม (${buyCount} vs ${sellCount})</p>
+                        <p class="font-bold text-lg drop-shadow-sm">🐂 Bullish Sentiment (มองขึ้น)</p>
+                        <p class="text-sm opacity-80">แรงซื้อมีความได้เปรียบในภาพรวม (${buyCount} vs ${sellCount})</p>
                     </div>
-                    <div class="text-3xl">🚀</div>
+                    <div class="text-4xl filter drop-shadow-md">🚀</div>
                 </div>`;
             } else if(sellCount > buyCount) {
-                sentimentHTML = `<div class="bg-rose-100 border-l-4 border-rose-500 text-rose-700 p-4 mb-6 rounded shadow-sm flex justify-between items-center">
+                sentimentHTML = `<div class="bg-gradient-to-r from-rose-50 to-white border-l-4 border-rose-500 text-rose-700 p-4 mb-6 rounded-lg shadow-md flex justify-between items-center transition-all hover:shadow-lg">
                     <div>
-                        <p class="font-bold text-lg">🐻 Bearish Sentiment (มองลง)</p>
-                        <p class="text-sm">แรงขายมีความได้เปรียบในภาพรวม (${sellCount} vs ${buyCount})</p>
+                        <p class="font-bold text-lg drop-shadow-sm">🐻 Bearish Sentiment (มองลง)</p>
+                        <p class="text-sm opacity-80">แรงขายมีความได้เปรียบในภาพรวม (${sellCount} vs ${buyCount})</p>
                     </div>
-                    <div class="text-3xl">🩸</div>
+                    <div class="text-4xl filter drop-shadow-md">🩸</div>
                 </div>`;
             } else if (buyCount === 0 && sellCount === 0) {
-                 sentimentHTML = `<div class="bg-gray-100 border-l-4 border-gray-400 text-gray-600 p-4 mb-6 rounded shadow-sm">
+                 sentimentHTML = `<div class="bg-gray-50 border-l-4 border-gray-400 text-gray-600 p-4 mb-6 rounded-lg shadow-sm">
                     <p class="font-bold">Waiting for Setup...</p>
                 </div>`;
             } else {
-                sentimentHTML = `<div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 p-4 mb-6 rounded shadow-sm flex justify-between items-center">
+                sentimentHTML = `<div class="bg-gradient-to-r from-yellow-50 to-white border-l-4 border-yellow-400 text-yellow-700 p-4 mb-6 rounded-lg shadow-md flex justify-between items-center transition-all hover:shadow-lg">
                     <div>
-                        <p class="font-bold text-lg">⚖️ Mixed Sentiment (ตลาดผันผวน)</p>
-                        <p class="text-sm">แรงซื้อและขายพอๆ กัน (${buyCount} vs ${sellCount}) ระวังสวิง</p>
+                        <p class="font-bold text-lg drop-shadow-sm">⚖️ Mixed Sentiment (ตลาดผันผวน)</p>
+                        <p class="text-sm opacity-80">แรงซื้อและขายพอๆ กัน (${buyCount} vs ${sellCount}) ระวังสวิง</p>
                     </div>
-                    <div class="text-3xl">⚠️</div>
+                    <div class="text-4xl filter drop-shadow-md">⚠️</div>
                 </div>`;
             }
 
@@ -596,22 +615,22 @@
 
             html += `
             <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                <div class="bg-gradient-to-br from-red-50 to-white p-4 rounded-xl shadow border border-red-100">
+                <div class="bg-gradient-to-br from-red-50 to-white p-4 rounded-xl shadow-md border border-red-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                     <p class="text-xs text-red-500 font-bold uppercase tracking-wider">Resistance (ต้าน)</p>
-                    <p class="text-2xl font-bold text-gray-800 mt-1">${drRes}</p>
+                    <p class="text-3xl font-bold text-gray-800 mt-2 drop-shadow-sm">${drRes}</p>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow border border-gray-200 relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full h-1 bg-blue-400"></div>
+                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-200 relative overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-300 to-blue-500"></div>
                     <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Open Price</p>
-                    <p class="text-2xl font-bold text-blue-600 mt-1">${drPrice}</p>
+                    <p class="text-3xl font-bold text-blue-600 mt-2 drop-shadow-sm">${drPrice}</p>
                 </div>
-                <div class="bg-gradient-to-br from-green-50 to-white p-4 rounded-xl shadow border border-green-100">
+                <div class="bg-gradient-to-br from-green-50 to-white p-4 rounded-xl shadow-md border border-green-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                     <p class="text-xs text-green-500 font-bold uppercase tracking-wider">Support (รับ)</p>
-                    <p class="text-2xl font-bold text-gray-800 mt-1">${drSup}</p>
+                    <p class="text-3xl font-bold text-gray-800 mt-2 drop-shadow-sm">${drSup}</p>
                 </div>
             </div>`;
 
-            html += `<div class="grid grid-cols-2 md:grid-cols-5 gap-3">`;
+            html += `<div class="grid grid-cols-2 md:grid-cols-5 gap-4">`;
 
             timeframes.forEach(tf => {
                 // Setup 1 - Safe Access
@@ -662,18 +681,18 @@
                 const rangeDiff = (low && high && !isNaN(low) && !isNaN(high)) ? (parseFloat(high) - parseFloat(low)).toFixed(2) : null;
 
                 let headerColor = "bg-gray-100 text-gray-700";
-                if(tf === 'mn') headerColor = "bg-indigo-100 text-indigo-800";
-                if(tf === 'wk') headerColor = "bg-purple-100 text-purple-800";
-                if(tf === 'd') headerColor = "bg-emerald-100 text-emerald-800";
-                if(tf === 'h4') headerColor = "bg-amber-100 text-amber-800";
-                if(tf === 'h1') headerColor = "bg-rose-100 text-rose-800";
+                if(tf === 'mn') headerColor = "bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-800";
+                if(tf === 'wk') headerColor = "bg-gradient-to-r from-purple-50 to-purple-100 text-purple-800";
+                if(tf === 'd') headerColor = "bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-800";
+                if(tf === 'h4') headerColor = "bg-gradient-to-r from-amber-50 to-amber-100 text-amber-800";
+                if(tf === 'h1') headerColor = "bg-gradient-to-r from-rose-50 to-rose-100 text-rose-800";
 
                 if (sig1 || wick1 || (toggle2 && (sig2 || wick2)) || low || high) {
                     html += `
-                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col hover:shadow-md transition-shadow break-inside-avoid">
-                        <div class="${headerColor} px-3 py-2 rounded-t-lg border-b border-gray-200 flex justify-between items-center">
-                            <span class="font-bold text-sm uppercase">${tf}</span>
-                            ${(low && high) ? '<span class="text-[10px] bg-white/50 px-1 rounded">SW Mode</span>' : ''}
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-md flex flex-col hover:shadow-xl hover:-translate-y-1 transition-all duration-300 break-inside-avoid">
+                        <div class="${headerColor} px-3 py-2 rounded-t-xl border-b border-gray-200 flex justify-between items-center">
+                            <span class="font-bold text-sm uppercase drop-shadow-sm">${tf}</span>
+                            ${(low && high) ? '<span class="text-[10px] bg-white/70 px-2 py-0.5 rounded-full shadow-sm text-gray-600">SW Mode</span>' : ''}
                         </div>
 
                         <div class="p-3 text-sm flex-1 flex flex-col gap-3">
@@ -685,21 +704,21 @@
                                 <div class="text-center py-1">
                                     ${getTrendIcon(sig1)}
                                     ${wick1 ? `
-                                        <div class="text-gray-800 font-mono font-bold text-lg mt-1">${wick1}</div>
-                                        <div class="mt-1 text-xs text-green-600 bg-green-50 rounded px-1 inline-block border border-green-100">
-                                            จุดเช็ครอบ: <span class="font-bold text-green-700">${wick1}</span>
+                                        <div class="text-gray-800 font-mono font-bold text-lg mt-1 tracking-tight">${wick1}</div>
+                                        <div class="mt-1 text-[10px] text-green-700 bg-green-50 rounded-full px-2 py-0.5 inline-block border border-green-100 shadow-sm">
+                                            จุดเช็ครอบ: <span class="font-bold">${wick1}</span>
                                         </div>
                                     ` : ''}
                                 </div>
                                 ${(sig1 && wick1) ? `
-                                <div class="flex justify-between text-[10px] text-gray-500 border-t pt-1 mt-1">
+                                <div class="flex justify-between text-[10px] text-gray-500 border-t border-gray-100 pt-2 mt-1">
                                     <span>TP1: <b class="text-gray-700">${tp1_1}</b></span>
                                     ${tp2_1 ? `<span>TP2: <b class="text-gray-700">${tp2_1}</b></span>` : ''}
                                 </div>` : ''}
                             </div>
 
                             ${(toggle2 && sig2) ? `
-                            <div class="relative border-t border-dashed pt-2">
+                            <div class="relative border-t border-dashed border-gray-300 pt-2">
                                 <div class="flex justify-between items-start mb-1">
                                     <span class="font-bold text-gray-400 text-[10px]">S2</span>
                                     ${getStatusBadge(msg2)}
@@ -707,13 +726,13 @@
                                 <div class="text-center py-1">
                                     ${getTrendIcon(sig2)}
                                     ${wick2 ? `
-                                        <div class="text-gray-800 font-mono font-bold text-lg mt-1">${wick2}</div>
-                                        <div class="mt-1 text-xs text-green-600 bg-green-50 rounded px-1 inline-block border border-green-100">
-                                            จุดเช็ครอบ: <span class="font-bold text-green-700">${wick2}</span>
+                                        <div class="text-gray-800 font-mono font-bold text-lg mt-1 tracking-tight">${wick2}</div>
+                                        <div class="mt-1 text-[10px] text-green-700 bg-green-50 rounded-full px-2 py-0.5 inline-block border border-green-100 shadow-sm">
+                                            จุดเช็ครอบ: <span class="font-bold">${wick2}</span>
                                         </div>
                                     ` : ''}
                                 </div>
-                                <div class="flex justify-between text-[10px] text-gray-500 border-t pt-1 mt-1">
+                                <div class="flex justify-between text-[10px] text-gray-500 border-t border-gray-100 pt-2 mt-1">
                                     <span>TP1: <b class="text-gray-700">${tp1_2}</b></span>
                                     <span>TP2: <b class="text-gray-700">${tp2_2}</b></span>
                                 </div>
@@ -721,15 +740,15 @@
                             ` : ''}
 
                             ${(low || high) ? `
-                            <div class="mt-auto bg-gradient-to-br from-slate-50 to-white rounded-md border border-slate-200 p-2 relative overflow-hidden group">
+                            <div class="mt-auto bg-gradient-to-br from-slate-50 to-white rounded-lg border border-slate-200 p-2 relative overflow-hidden group shadow-inner">
                                 <div class="flex justify-between items-center mb-1">
                                     <span class="text-[9px] font-bold text-red-400 uppercase tracking-wider">High</span>
                                     <span class="font-mono text-xs font-bold text-slate-700">${high || '-'}</span>
                                 </div>
                                 
-                                <div class="relative h-2 w-full bg-slate-100 rounded-full my-1 flex items-center justify-center overflow-hidden">
-                                    <div class="absolute inset-0 bg-gradient-to-r from-green-100 to-red-100 opacity-50"></div>
-                                    ${rangeDiff ? `<span class="relative z-10 text-[8px] font-bold text-slate-500 bg-white/80 px-1.5 rounded-full shadow-sm">Range: ${rangeDiff}</span>` : ''}
+                                <div class="relative h-2 w-full bg-slate-100 rounded-full my-1 flex items-center justify-center overflow-hidden shadow-inner">
+                                    <div class="absolute inset-0 bg-gradient-to-r from-green-200 to-red-200 opacity-60"></div>
+                                    ${rangeDiff ? `<span class="relative z-10 text-[8px] font-bold text-slate-600 bg-white/90 px-2 py-0.5 rounded-full shadow-sm">Range: ${rangeDiff}</span>` : ''}
                                 </div>
 
                                 <div class="flex justify-between items-center">
@@ -743,7 +762,7 @@
                     </div>`;
                 } else {
                     html += `
-                    <div class="bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center p-4 min-h-[150px] opacity-50">
+                    <div class="bg-gray-50 rounded-xl border border-dashed border-gray-300 flex items-center justify-center p-4 min-h-[150px] opacity-60 hover:opacity-100 transition-opacity">
                         <div class="text-center">
                             <span class="block text-gray-300 font-bold uppercase text-lg">${tf}</span>
                             <span class="text-xs text-gray-400">No Data</span>
@@ -774,8 +793,8 @@
             <h3 class="text-xl font-bold text-red-600 mb-2">ยืนยันการล้างข้อมูล</h3>
             <p class="text-gray-600 mb-6">คุณต้องการล้างข้อมูลทั้งหมดใน Journal นี้ใช่หรือไม่? <br><span class="text-xs text-red-500">*การกระทำนี้ไม่สามารถย้อนกลับได้</span></p>
             <div class="flex justify-end gap-3">
-                <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">ยกเลิก</button>
-                <button onclick="confirmClearAll()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">ยืนยัน ล้างข้อมูล</button>
+                <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 shadow-sm hover:shadow">ยกเลิก</button>
+                <button onclick="confirmClearAll()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 shadow-sm hover:shadow-md">ยืนยัน ล้างข้อมูล</button>
             </div>
         </div>
     </div>
@@ -783,18 +802,18 @@
     <!-- Dedicated Print Output Container (Hidden on Screen) -->
     <div id="print-output"></div>
 
-    <div class="print-container max-w-4xl mx-auto p-4 md:p-6 bg-white shadow-lg min-h-screen my-4 rounded-xl border border-pastel-header">
+    <div class="print-container max-w-4xl mx-auto p-4 md:p-6 bg-white shadow-2xl min-h-screen my-4 rounded-2xl border border-white">
         
         <!-- Header -->
-        <header class="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-pastel-header no-print">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-100 no-print">
             <div>
-                <h1 class="text-2xl md:text-3xl font-bold text-pastel-text">Trading Journal</h1>
-                <p class="text-sm text-gray-500" id="status-indicator">สถานะ: กำลังเชื่อมต่อ...</p>
+                <h1 class="text-2xl md:text-3xl font-bold text-pastel-text drop-shadow-sm">Trading Journal</h1>
+                <p class="text-sm text-gray-500 mt-1" id="status-indicator">สถานะ: กำลังเชื่อมต่อ...</p>
             </div>
             <div class="mt-4 md:mt-0 flex gap-2 flex-wrap justify-center">
-                <button onclick="saveData()" class="px-4 py-2 bg-pastel-accent text-white font-bold rounded-lg shadow hover:bg-green-600 transition">บันทึก Cloud</button>
-                <button onclick="printSummary()" class="px-4 py-2 bg-purple-500 text-white font-bold rounded-lg shadow hover:bg-purple-600 transition">พิมพ์(สรุป) PDF</button>
-                <button onclick="openClearAllModal()" class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow hover:bg-red-600 transition">ล้างทั้งหมด</button>
+                <button onclick="saveData()" class="px-4 py-2 bg-pastel-accent text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200">บันทึก Cloud</button>
+                <button onclick="printSummary()" class="px-4 py-2 bg-purple-500 text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 hover:bg-purple-600">พิมพ์(สรุป) PDF</button>
+                <button onclick="openClearAllModal()" class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 hover:bg-red-600">ล้างทั้งหมด</button>
             </div>
         </header>
 
@@ -802,51 +821,55 @@
         <div class="main-form-section space-y-8">
             
             <!-- Daily Plan -->
-            <section class="bg-pastel-bg p-4 rounded-xl border border-pastel-header">
-                <h2 class="text-xl font-bold text-pastel-text mb-4">วางแผนการเทรดประจำวัน</h2>
+            <section class="bg-pastel-bg p-6 rounded-2xl border border-pastel-header shadow-md hover:shadow-lg transition-shadow duration-300">
+                <h2 class="text-xl font-bold text-pastel-text mb-4 flex items-center gap-2">
+                    <span class="bg-white p-1 rounded-md shadow-sm">📅</span> วางแผนการเทรดประจำวัน
+                </h2>
                 <div class="flex flex-col md:flex-row gap-4 items-end mb-4">
                     <div class="w-full md:w-auto flex-1">
-                        <label class="block text-sm font-semibold mb-1">วันที่</label>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">วันที่</label>
                         <div class="flex gap-2">
-                            <input type="text" id="date" class="w-full p-2 rounded" placeholder="วว/ดด/ปปปป">
-                            <button onclick="setDate()" class="px-3 py-2 bg-blue-500 text-white rounded shadow text-sm whitespace-nowrap">วันนี้</button>
+                            <input type="text" id="date" class="w-full p-2.5 rounded-lg border-gray-300" placeholder="วว/ดด/ปปปป">
+                            <button onclick="setDate()" class="px-4 py-2.5 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 text-sm whitespace-nowrap transition-colors">วันนี้</button>
                         </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-sm font-semibold mb-1">ราคากรอบวัน (07.00 น.)</label>
-                        <input type="number" step="0.01" id="dr-price" class="w-full p-2 rounded" placeholder="ใส่ราคา">
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">ราคากรอบวัน (07.00 น.)</label>
+                        <input type="number" step="0.01" id="dr-price" class="w-full p-2.5 rounded-lg border-gray-300" placeholder="ใส่ราคา">
                     </div>
-                    <div class="bg-white p-2 rounded border border-gray-200">
-                        <span class="block text-xs text-gray-500">แนวต้านหลัก (+5)</span>
-                        <span id="dr-res" class="text-lg font-bold text-red-500">...</span>
+                    <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm flex flex-col justify-center">
+                        <span class="block text-xs text-gray-500 font-semibold uppercase">แนวต้านหลัก (+5)</span>
+                        <span id="dr-res" class="text-xl font-bold text-red-500">...</span>
                     </div>
-                    <div class="bg-white p-2 rounded border border-gray-200">
-                        <span class="block text-xs text-gray-500">แนวต้านรับ (-5)</span>
-                        <span id="dr-sup" class="text-lg font-bold text-green-500">...</span>
+                    <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm flex flex-col justify-center">
+                        <span class="block text-xs text-gray-500 font-semibold uppercase">แนวต้านรับ (-5)</span>
+                        <span id="dr-sup" class="text-xl font-bold text-green-500">...</span>
                     </div>
                 </div>
             </section>
 
             <!-- Main Timeframes Analysis -->
             <section class="space-y-6">
-                <h2 class="text-2xl font-bold text-pastel-text border-l-4 border-pastel-accent pl-3">วิเคราะห์กราฟภาพรวม</h2>
+                <h2 class="text-2xl font-bold text-pastel-text border-l-4 border-pastel-accent pl-4 py-1">วิเคราะห์กราฟภาพรวม</h2>
 
                 <!-- Template for TF Block -->
                 <!-- MONTH -->
-                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 shadow-sm relative">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-lg font-bold text-pastel-text">MONTH (MN)</h3>
+                <div class="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-md hover:shadow-xl transition-all duration-300 relative group">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-indigo-700 flex items-center gap-2">
+                            <span class="bg-indigo-100 p-1 rounded text-sm">📅</span> MONTH (MN)
+                        </h3>
                         <div class="flex gap-3 items-center">
-                            <label class="flex items-center cursor-pointer text-sm select-none">
-                                <span class="mr-2 font-medium text-gray-600">Setup 2</span>
+                            <label class="flex items-center cursor-pointer text-sm select-none bg-white px-2 py-1 rounded-full shadow-sm border border-gray-100">
+                                <span class="mr-2 font-medium text-gray-600 text-xs">Setup 2</span>
                                 <div class="relative">
                                     <input type="checkbox" id="mn-toggle-2" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-pastel-toggle_off peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pastel-toggle_on"></div>
+                                    <div class="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-pastel-toggle_on"></div>
                                 </div>
                             </label>
-                            <button onclick="clearSection('mn')" class="text-xs text-red-500 hover:text-red-700 underline">CLEAR MN</button>
+                            <button onclick="clearSection('mn')" class="text-xs text-red-400 hover:text-red-600 underline decoration-dotted">CLEAR MN</button>
                         </div>
                     </div>
                     
@@ -854,97 +877,99 @@
                     <div id="mn-setup-1">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell</label>
-                                <select id="mn-sig" class="w-full p-2 rounded">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sig Buy/Sell</label>
+                                <select id="mn-sig" class="w-full p-2.5 rounded-lg border-gray-200">
                                     <option value="">เลือก...</option>
                                     <option value="Buy P1">Buy P1</option><option value="Buy P2">Buy P2</option><option value="Buy P3">Buy P3</option>
                                     <option value="Sell P1">Sell P1</option><option value="Sell P2">Sell P2</option><option value="Sell P3">Sell P3</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig MN</label>
-                                <input type="number" step="0.01" id="mn-wick" class="w-full p-2 rounded" placeholder="ราคา">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">ไส้หลัง Sig MN</label>
+                                <input type="number" step="0.01" id="mn-wick" class="w-full p-2.5 rounded-lg border-gray-200" placeholder="ราคา">
                             </div>
                             <div class="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway Low</label>
-                                    <input type="number" step="0.01" id="mn-low" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway Low</label>
+                                    <input type="number" step="0.01" id="mn-low" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway High</label>
-                                    <input type="number" step="0.01" id="mn-high" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway High</label>
+                                    <input type="number" step="0.01" id="mn-high" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <div id="mn-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 MN (+/- 500) : <span id="mn-tp1-val">...</span></span>
+                        <div class="space-y-3">
+                            <div id="mn-tp1-box" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP1 MN (+/- 500) : <span id="mn-tp1-val" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="mn-tp1-check">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="mn-tp1-check">Check</label>
                                     <input type="checkbox" id="mn-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
-                            <div id="mn-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 MN (+/- 1000) : <span id="mn-tp2-val">...</span></span>
+                            <div id="mn-tp2-box" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP2 MN (+/- 1000) : <span id="mn-tp2-val" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="mn-tp2-check">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="mn-tp2-check">Check</label>
                                     <input type="checkbox" id="mn-tp2-check" class="tp-checkbox">
                                 </div>
                             </div>
                         </div>
-                        <div id="mn-msg" class="min-h-[1.5rem]"></div>
+                        <div id="mn-msg" class="min-h-[1.5rem] mt-2"></div>
                     </div>
 
                     <!-- Setup 2 -->
-                    <div id="mn-setup-2" class="hidden mt-4 pt-4 border-t-2 border-dashed border-indigo-200">
-                        <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded">เงื่อนไขที่ 2 (Setup 2)</h4>
+                    <div id="mn-setup-2" class="hidden mt-6 pt-4 border-t-2 border-dashed border-indigo-100 relative">
+                        <div class="absolute -top-3 left-4 bg-indigo-50 px-2 text-xs font-bold text-indigo-400">Setup 2</div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell (2)</label>
-                                <select id="mn-sig-2" class="w-full p-2 rounded">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sig Buy/Sell (2)</label>
+                                <select id="mn-sig-2" class="w-full p-2.5 rounded-lg border-gray-200">
                                     <option value="">เลือก...</option>
                                     <option value="Buy P1">Buy P1</option><option value="Buy P2">Buy P2</option><option value="Buy P3">Buy P3</option>
                                     <option value="Sell P1">Sell P1</option><option value="Sell P2">Sell P2</option><option value="Sell P3">Sell P3</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig (2)</label>
-                                <input type="number" step="0.01" id="mn-wick-2" class="w-full p-2 rounded" placeholder="ราคา">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">ไส้หลัง Sig (2)</label>
+                                <input type="number" step="0.01" id="mn-wick-2" class="w-full p-2.5 rounded-lg border-gray-200" placeholder="ราคา">
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <div id="mn-tp1-box-2" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 (+/- 500) : <span id="mn-tp1-val-2">...</span></span>
+                        <div class="space-y-3">
+                            <div id="mn-tp1-box-2" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP1 (+/- 500) : <span id="mn-tp1-val-2" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="mn-tp1-check-2">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="mn-tp1-check-2">Check</label>
                                     <input type="checkbox" id="mn-tp1-check-2" class="tp-checkbox">
                                 </div>
                             </div>
-                            <div id="mn-tp2-box-2" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 (+/- 1000) : <span id="mn-tp2-val-2">...</span></span>
+                            <div id="mn-tp2-box-2" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP2 (+/- 1000) : <span id="mn-tp2-val-2" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="mn-tp2-check-2">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="mn-tp2-check-2">Check</label>
                                     <input type="checkbox" id="mn-tp2-check-2" class="tp-checkbox">
                                 </div>
                             </div>
                         </div>
-                        <div id="mn-msg-2" class="min-h-[1.5rem]"></div>
+                        <div id="mn-msg-2" class="min-h-[1.5rem] mt-2"></div>
                     </div>
                 </div>
 
                 <!-- WEEK -->
-                <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 shadow-sm relative">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-lg font-bold text-pastel-text">WEEK (WK)</h3>
+                <div class="bg-gradient-to-br from-purple-50 to-white p-5 rounded-2xl border border-purple-100 shadow-md hover:shadow-xl transition-all duration-300 relative group">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-purple-700 flex items-center gap-2">
+                            <span class="bg-purple-100 p-1 rounded text-sm">📅</span> WEEK (WK)
+                        </h3>
                         <div class="flex gap-3 items-center">
-                            <label class="flex items-center cursor-pointer text-sm select-none">
-                                <span class="mr-2 font-medium text-gray-600">Setup 2</span>
+                            <label class="flex items-center cursor-pointer text-sm select-none bg-white px-2 py-1 rounded-full shadow-sm border border-gray-100">
+                                <span class="mr-2 font-medium text-gray-600 text-xs">Setup 2</span>
                                 <div class="relative">
                                     <input type="checkbox" id="wk-toggle-2" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-pastel-toggle_off peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pastel-toggle_on"></div>
+                                    <div class="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-pastel-toggle_on"></div>
                                 </div>
                             </label>
-                            <button onclick="clearSection('wk')" class="text-xs text-red-500 hover:text-red-700 underline">CLEAR WK</button>
+                            <button onclick="clearSection('wk')" class="text-xs text-red-400 hover:text-red-600 underline decoration-dotted">CLEAR WK</button>
                         </div>
                     </div>
 
@@ -952,8 +977,8 @@
                     <div id="wk-setup-1">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell</label>
-                                <select id="wk-sig" class="w-full p-2 rounded">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sig Buy/Sell</label>
+                                <select id="wk-sig" class="w-full p-2.5 rounded-lg border-gray-200">
                                     <option value="">เลือก...</option>
                                     <option value="Buy P1">Buy P1</option>
                                     <option value="Buy P2">Buy P2</option>
@@ -964,89 +989,91 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig WK</label>
-                                <input type="number" step="0.01" id="wk-wick" class="w-full p-2 rounded" placeholder="ราคา">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">ไส้หลัง Sig WK</label>
+                                <input type="number" step="0.01" id="wk-wick" class="w-full p-2.5 rounded-lg border-gray-200" placeholder="ราคา">
                             </div>
                             <div class="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway Low</label>
-                                    <input type="number" step="0.01" id="wk-low" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway Low</label>
+                                    <input type="number" step="0.01" id="wk-low" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway High</label>
-                                    <input type="number" step="0.01" id="wk-high" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway High</label>
+                                    <input type="number" step="0.01" id="wk-high" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <div id="wk-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 WK (+/- 150) : <span id="wk-tp1-val">...</span></span>
+                        <div class="space-y-3">
+                            <div id="wk-tp1-box" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP1 WK (+/- 150) : <span id="wk-tp1-val" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="wk-tp1-check">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="wk-tp1-check">Check</label>
                                     <input type="checkbox" id="wk-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
-                            <div id="wk-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 WK (+/- 300) : <span id="wk-tp2-val">...</span></span>
+                            <div id="wk-tp2-box" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP2 WK (+/- 300) : <span id="wk-tp2-val" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="wk-tp2-check">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="wk-tp2-check">Check</label>
                                     <input type="checkbox" id="wk-tp2-check" class="tp-checkbox">
                                 </div>
                             </div>
                         </div>
-                        <div id="wk-msg" class="min-h-[1.5rem]"></div>
+                        <div id="wk-msg" class="min-h-[1.5rem] mt-2"></div>
                     </div>
 
                     <!-- Setup 2 -->
-                    <div id="wk-setup-2" class="hidden mt-4 pt-4 border-t-2 border-dashed border-purple-200">
-                        <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded">เงื่อนไขที่ 2 (Setup 2)</h4>
+                    <div id="wk-setup-2" class="hidden mt-6 pt-4 border-t-2 border-dashed border-purple-100 relative">
+                        <div class="absolute -top-3 left-4 bg-purple-50 px-2 text-xs font-bold text-purple-400">Setup 2</div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell (2)</label>
-                                <select id="wk-sig-2" class="w-full p-2 rounded">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sig Buy/Sell (2)</label>
+                                <select id="wk-sig-2" class="w-full p-2.5 rounded-lg border-gray-200">
                                     <option value="">เลือก...</option>
                                     <option value="Buy P1">Buy P1</option><option value="Buy P2">Buy P2</option><option value="Buy P3">Buy P3</option>
                                     <option value="Sell P1">Sell P1</option><option value="Sell P2">Sell P2</option><option value="Sell P3">Sell P3</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig (2)</label>
-                                <input type="number" step="0.01" id="wk-wick-2" class="w-full p-2 rounded" placeholder="ราคา">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">ไส้หลัง Sig (2)</label>
+                                <input type="number" step="0.01" id="wk-wick-2" class="w-full p-2.5 rounded-lg border-gray-200" placeholder="ราคา">
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <div id="wk-tp1-box-2" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 (+/- 150) : <span id="wk-tp1-val-2">...</span></span>
+                        <div class="space-y-3">
+                            <div id="wk-tp1-box-2" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP1 (+/- 150) : <span id="wk-tp1-val-2" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="wk-tp1-check-2">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="wk-tp1-check-2">Check</label>
                                     <input type="checkbox" id="wk-tp1-check-2" class="tp-checkbox">
                                 </div>
                             </div>
-                            <div id="wk-tp2-box-2" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 (+/- 300) : <span id="wk-tp2-val-2">...</span></span>
+                            <div id="wk-tp2-box-2" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP2 (+/- 300) : <span id="wk-tp2-val-2" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="wk-tp2-check-2">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="wk-tp2-check-2">Check</label>
                                     <input type="checkbox" id="wk-tp2-check-2" class="tp-checkbox">
                                 </div>
                             </div>
                         </div>
-                        <div id="wk-msg-2" class="min-h-[1.5rem]"></div>
+                        <div id="wk-msg-2" class="min-h-[1.5rem] mt-2"></div>
                     </div>
                 </div>
 
                 <!-- DAY -->
-                <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm relative">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-lg font-bold text-pastel-text">DAY (D)</h3>
+                <div class="bg-gradient-to-br from-emerald-50 to-white p-5 rounded-2xl border border-emerald-100 shadow-md hover:shadow-xl transition-all duration-300 relative group">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-emerald-700 flex items-center gap-2">
+                            <span class="bg-emerald-100 p-1 rounded text-sm">📅</span> DAY (D)
+                        </h3>
                         <div class="flex gap-3 items-center">
-                            <label class="flex items-center cursor-pointer text-sm select-none">
-                                <span class="mr-2 font-medium text-gray-600">Setup 2</span>
+                            <label class="flex items-center cursor-pointer text-sm select-none bg-white px-2 py-1 rounded-full shadow-sm border border-gray-100">
+                                <span class="mr-2 font-medium text-gray-600 text-xs">Setup 2</span>
                                 <div class="relative">
                                     <input type="checkbox" id="d-toggle-2" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-pastel-toggle_off peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pastel-toggle_on"></div>
+                                    <div class="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-pastel-toggle_on"></div>
                                 </div>
                             </label>
-                            <button onclick="clearSection('d')" class="text-xs text-red-500 hover:text-red-700 underline">CLEAR DAY</button>
+                            <button onclick="clearSection('d')" class="text-xs text-red-400 hover:text-red-600 underline decoration-dotted">CLEAR DAY</button>
                         </div>
                     </div>
 
@@ -1054,97 +1081,99 @@
                     <div id="d-setup-1">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell</label>
-                                <select id="d-sig" class="w-full p-2 rounded">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sig Buy/Sell</label>
+                                <select id="d-sig" class="w-full p-2.5 rounded-lg border-gray-200">
                                     <option value="">เลือก...</option>
                                     <option value="Buy P1">Buy P1</option><option value="Buy P2">Buy P2</option><option value="Buy P3">Buy P3</option>
                                     <option value="Sell P1">Sell P1</option><option value="Sell P2">Sell P2</option><option value="Sell P3">Sell P3</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig Day</label>
-                                <input type="number" step="0.01" id="d-wick" class="w-full p-2 rounded" placeholder="ราคา">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">ไส้หลัง Sig Day</label>
+                                <input type="number" step="0.01" id="d-wick" class="w-full p-2.5 rounded-lg border-gray-200" placeholder="ราคา">
                             </div>
                             <div class="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway Low</label>
-                                    <input type="number" step="0.01" id="d-low" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway Low</label>
+                                    <input type="number" step="0.01" id="d-low" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway High</label>
-                                    <input type="number" step="0.01" id="d-high" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway High</label>
+                                    <input type="number" step="0.01" id="d-high" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <div id="d-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 Day (+/- 50) : <span id="d-tp1-val">...</span></span>
+                        <div class="space-y-3">
+                            <div id="d-tp1-box" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP1 Day (+/- 50) : <span id="d-tp1-val" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="d-tp1-check">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="d-tp1-check">Check</label>
                                     <input type="checkbox" id="d-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
-                            <div id="d-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 Day (+/- 100) : <span id="d-tp2-val">...</span></span>
+                            <div id="d-tp2-box" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP2 Day (+/- 100) : <span id="d-tp2-val" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="d-tp2-check">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="d-tp2-check">Check</label>
                                     <input type="checkbox" id="d-tp2-check" class="tp-checkbox">
                                 </div>
                             </div>
                         </div>
-                        <div id="d-msg" class="min-h-[1.5rem]"></div>
+                        <div id="d-msg" class="min-h-[1.5rem] mt-2"></div>
                     </div>
 
                     <!-- Setup 2 -->
-                    <div id="d-setup-2" class="hidden mt-4 pt-4 border-t-2 border-dashed border-emerald-200">
-                        <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded">เงื่อนไขที่ 2 (Setup 2)</h4>
+                    <div id="d-setup-2" class="hidden mt-6 pt-4 border-t-2 border-dashed border-emerald-100 relative">
+                        <div class="absolute -top-3 left-4 bg-emerald-50 px-2 text-xs font-bold text-emerald-400">Setup 2</div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell (2)</label>
-                                <select id="d-sig-2" class="w-full p-2 rounded">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sig Buy/Sell (2)</label>
+                                <select id="d-sig-2" class="w-full p-2.5 rounded-lg border-gray-200">
                                     <option value="">เลือก...</option>
                                     <option value="Buy P1">Buy P1</option><option value="Buy P2">Buy P2</option><option value="Buy P3">Buy P3</option>
                                     <option value="Sell P1">Sell P1</option><option value="Sell P2">Sell P2</option><option value="Sell P3">Sell P3</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig (2)</label>
-                                <input type="number" step="0.01" id="d-wick-2" class="w-full p-2 rounded" placeholder="ราคา">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">ไส้หลัง Sig (2)</label>
+                                <input type="number" step="0.01" id="d-wick-2" class="w-full p-2.5 rounded-lg border-gray-200" placeholder="ราคา">
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <div id="d-tp1-box-2" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 (+/- 50) : <span id="d-tp1-val-2">...</span></span>
+                        <div class="space-y-3">
+                            <div id="d-tp1-box-2" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP1 (+/- 50) : <span id="d-tp1-val-2" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="d-tp1-check-2">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="d-tp1-check-2">Check</label>
                                     <input type="checkbox" id="d-tp1-check-2" class="tp-checkbox">
                                 </div>
                             </div>
-                            <div id="d-tp2-box-2" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 (+/- 100) : <span id="d-tp2-val-2">...</span></span>
+                            <div id="d-tp2-box-2" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP2 (+/- 100) : <span id="d-tp2-val-2" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="d-tp2-check-2">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="d-tp2-check-2">Check</label>
                                     <input type="checkbox" id="d-tp2-check-2" class="tp-checkbox">
                                 </div>
                             </div>
                         </div>
-                        <div id="d-msg-2" class="min-h-[1.5rem]"></div>
+                        <div id="d-msg-2" class="min-h-[1.5rem] mt-2"></div>
                     </div>
                 </div>
 
                 <!-- H4 -->
-                <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 shadow-sm relative">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-lg font-bold text-pastel-text">H4</h3>
+                <div class="bg-gradient-to-br from-amber-50 to-white p-5 rounded-2xl border border-amber-100 shadow-md hover:shadow-xl transition-all duration-300 relative group">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-amber-700 flex items-center gap-2">
+                            <span class="bg-amber-100 p-1 rounded text-sm">📅</span> H4
+                        </h3>
                         <div class="flex gap-3 items-center">
-                            <label class="flex items-center cursor-pointer text-sm select-none">
-                                <span class="mr-2 font-medium text-gray-600">Setup 2</span>
+                            <label class="flex items-center cursor-pointer text-sm select-none bg-white px-2 py-1 rounded-full shadow-sm border border-gray-100">
+                                <span class="mr-2 font-medium text-gray-600 text-xs">Setup 2</span>
                                 <div class="relative">
                                     <input type="checkbox" id="h4-toggle-2" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-pastel-toggle_off peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pastel-toggle_on"></div>
+                                    <div class="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-pastel-toggle_on"></div>
                                 </div>
                             </label>
-                            <button onclick="clearSection('h4')" class="text-xs text-red-500 hover:text-red-700 underline">CLEAR H4</button>
+                            <button onclick="clearSection('h4')" class="text-xs text-red-400 hover:text-red-600 underline decoration-dotted">CLEAR H4</button>
                         </div>
                     </div>
 
@@ -1152,91 +1181,93 @@
                     <div id="h4-setup-1">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell</label>
-                                <select id="h4-sig" class="w-full p-2 rounded">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sig Buy/Sell</label>
+                                <select id="h4-sig" class="w-full p-2.5 rounded-lg border-gray-200">
                                     <option value="">เลือก...</option>
                                     <option value="Buy P1">Buy P1</option><option value="Buy P2">Buy P2</option><option value="Buy P3">Buy P3</option>
                                     <option value="Sell P1">Sell P1</option><option value="Sell P2">Sell P2</option><option value="Sell P3">Sell P3</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig H4</label>
-                                <input type="number" step="0.01" id="h4-wick" class="w-full p-2 rounded" placeholder="ราคา">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">ไส้หลัง Sig H4</label>
+                                <input type="number" step="0.01" id="h4-wick" class="w-full p-2.5 rounded-lg border-gray-200" placeholder="ราคา">
                             </div>
                             <div class="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway Low</label>
-                                    <input type="number" step="0.01" id="h4-low" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway Low</label>
+                                    <input type="number" step="0.01" id="h4-low" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway High</label>
-                                    <input type="number" step="0.01" id="h4-high" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway High</label>
+                                    <input type="number" step="0.01" id="h4-high" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <div id="h4-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 H4 (+/- 15) : <span id="h4-tp1-val">...</span></span>
+                        <div class="space-y-3">
+                            <div id="h4-tp1-box" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP1 H4 (+/- 15) : <span id="h4-tp1-val" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="h4-tp1-check">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="h4-tp1-check">Check</label>
                                     <input type="checkbox" id="h4-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
-                            <div id="h4-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 H4 (+/- 30) : <span id="h4-tp2-val">...</span></span>
+                            <div id="h4-tp2-box" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP2 H4 (+/- 30) : <span id="h4-tp2-val" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="h4-tp2-check">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="h4-tp2-check">Check</label>
                                     <input type="checkbox" id="h4-tp2-check" class="tp-checkbox">
                                 </div>
                             </div>
                         </div>
-                        <div id="h4-msg" class="min-h-[1.5rem]"></div>
+                        <div id="h4-msg" class="min-h-[1.5rem] mt-2"></div>
                     </div>
 
                     <!-- Setup 2 -->
-                    <div id="h4-setup-2" class="hidden mt-4 pt-4 border-t-2 border-dashed border-amber-200">
-                        <h4 class="text-sm font-bold text-gray-500 mb-3 bg-white inline-block px-2 py-1 rounded">เงื่อนไขที่ 2 (Setup 2)</h4>
+                    <div id="h4-setup-2" class="hidden mt-6 pt-4 border-t-2 border-dashed border-amber-100 relative">
+                        <div class="absolute -top-3 left-4 bg-amber-50 px-2 text-xs font-bold text-amber-400">Setup 2</div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell (2)</label>
-                                <select id="h4-sig-2" class="w-full p-2 rounded">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sig Buy/Sell (2)</label>
+                                <select id="h4-sig-2" class="w-full p-2.5 rounded-lg border-gray-200">
                                     <option value="">เลือก...</option>
                                     <option value="Buy P1">Buy P1</option><option value="Buy P2">Buy P2</option><option value="Buy P3">Buy P3</option>
                                     <option value="Sell P1">Sell P1</option><option value="Sell P2">Sell P2</option><option value="Sell P3">Sell P3</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig (2)</label>
-                                <input type="number" step="0.01" id="h4-wick-2" class="w-full p-2 rounded" placeholder="ราคา">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">ไส้หลัง Sig (2)</label>
+                                <input type="number" step="0.01" id="h4-wick-2" class="w-full p-2.5 rounded-lg border-gray-200" placeholder="ราคา">
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <div id="h4-tp1-box-2" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 (+/- 15) : <span id="h4-tp1-val-2">...</span></span>
+                        <div class="space-y-3">
+                            <div id="h4-tp1-box-2" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP1 (+/- 15) : <span id="h4-tp1-val-2" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="h4-tp1-check-2">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="h4-tp1-check-2">Check</label>
                                     <input type="checkbox" id="h4-tp1-check-2" class="tp-checkbox">
                                 </div>
                             </div>
-                            <div id="h4-tp2-box-2" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 (+/- 30) : <span id="h4-tp2-val-2">...</span></span>
+                            <div id="h4-tp2-box-2" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP2 (+/- 30) : <span id="h4-tp2-val-2" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="h4-tp2-check-2">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="h4-tp2-check-2">Check</label>
                                     <input type="checkbox" id="h4-tp2-check-2" class="tp-checkbox">
                                 </div>
                             </div>
                         </div>
-                        <div id="h4-msg-2" class="min-h-[1.5rem]"></div>
+                        <div id="h4-msg-2" class="min-h-[1.5rem] mt-2"></div>
                     </div>
                 </div>
 
                 <!-- H1 -->
-                <div class="bg-rose-50 p-4 rounded-xl border border-rose-200 shadow-sm relative">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-lg font-bold text-pastel-text">H1</h3>
+                <div class="bg-gradient-to-br from-rose-50 to-white p-5 rounded-2xl border border-rose-100 shadow-md hover:shadow-xl transition-all duration-300 relative group">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-rose-700 flex items-center gap-2">
+                            <span class="bg-rose-100 p-1 rounded text-sm">📅</span> H1
+                        </h3>
                         <div class="flex gap-3 items-center">
                             <!-- No Setup 2 Toggle Here -->
-                            <button onclick="clearSection('h1')" class="text-xs text-red-500 hover:text-red-700 underline">CLEAR H1</button>
+                            <button onclick="clearSection('h1')" class="text-xs text-red-400 hover:text-red-600 underline decoration-dotted">CLEAR H1</button>
                         </div>
                     </div>
 
@@ -1244,8 +1275,8 @@
                     <div id="h1-setup-1">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Sig Buy/Sell (6 ตัวเลือก)</label>
-                                <select id="h1-sig" class="w-full p-2 rounded">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sig Buy/Sell (6 ตัวเลือก)</label>
+                                <select id="h1-sig" class="w-full p-2.5 rounded-lg border-gray-200">
                                     <option value="">เลือก...</option>
                                     <option value="Buy P1">Buy P1</option>
                                     <option value="Buy P2">Buy P2</option>
@@ -1256,47 +1287,50 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">ไส้หลัง Sig H1</label>
-                                <input type="number" step="0.01" id="h1-wick" class="w-full p-2 rounded" placeholder="ราคา">
+                                <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">ไส้หลัง Sig H1</label>
+                                <input type="number" step="0.01" id="h1-wick" class="w-full p-2.5 rounded-lg border-gray-200" placeholder="ราคา">
                             </div>
                             <div class="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway Low</label>
-                                    <input type="number" step="0.01" id="h1-low" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway Low</label>
+                                    <input type="number" step="0.01" id="h1-low" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Sideway High</label>
-                                    <input type="number" step="0.01" id="h1-high" class="w-full p-2 rounded">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Sideway High</label>
+                                    <input type="number" step="0.01" id="h1-high" class="w-full p-2.5 rounded-lg border-gray-200">
                                 </div>
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <div id="h1-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 H1 (+/- 10) : <span id="h1-tp1-val">...</span></span>
+                        <div class="space-y-3">
+                            <div id="h1-tp1-box" class="tp-box border border-gray-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                                <span class="font-semibold text-sm">TP1 H1 (+/- 10) : <span id="h1-tp1-val" class="font-mono">...</span></span>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-sm cursor-pointer" for="h1-tp1-check">TP</label>
+                                    <label class="text-xs font-bold uppercase text-gray-400 cursor-pointer" for="h1-tp1-check">Check</label>
                                     <input type="checkbox" id="h1-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
                             <!-- No TP2 Box Here -->
                         </div>
-                        <div id="h1-msg" class="min-h-[1.5rem]"></div>
+                        <div id="h1-msg" class="min-h-[1.5rem] mt-2"></div>
                     </div>
 
                     <!-- No Setup 2 Section Here -->
                 </div>
 
                 <!-- Daily Notes -->
-                <div class="bg-white p-4 rounded-xl border border-pastel-header shadow-sm">
-                    <label class="block font-bold text-pastel-text mb-2">บันทึกเหตุการณ์ในช่วงวันนี้</label>
-                    <textarea id="daily-note" class="w-full h-24 p-2 rounded" placeholder="จดบันทึก..."></textarea>
+                <div class="bg-white p-6 rounded-2xl border border-pastel-header shadow-md hover:shadow-lg transition-shadow duration-300">
+                    <label class="block font-bold text-pastel-text mb-2 flex items-center gap-2">
+                        <span class="bg-green-50 p-1 rounded-md">📝</span> บันทึกเหตุการณ์ในช่วงวันนี้
+                    </label>
+                    <textarea id="daily-note" class="w-full h-24 p-3 rounded-lg border-gray-200 focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all" placeholder="จดบันทึก..."></textarea>
                 </div>
 
             </section>
 
             <!-- Summary Footer -->
-            <section id="summary-section" class="summary-section bg-white p-6 rounded-xl border border-pastel-header shadow-lg mt-8">
-                <h2 class="text-2xl font-bold text-center text-pastel-text mb-4 border-b pb-2">สรุปภาพรวม Trading Journal</h2>
+            <section id="summary-section" class="summary-section bg-white p-8 rounded-2xl border border-white shadow-2xl mt-12 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-blue-500"></div>
+                <h2 class="text-2xl font-bold text-center text-gray-800 mb-6 pb-4 border-b border-gray-100">สรุปภาพรวม Trading Journal</h2>
                 <div id="summary-content">Loading...</div>
                 <!-- Hidden Note Container for Print Only -->
                 <div id="print-daily-note" class="hidden mt-4 pt-4 border-t border-gray-300"></div>
