@@ -82,7 +82,7 @@
             opacity: 1;
             pointer-events: auto;
         }
-        #scrollTopBtn:hover {
+        #scrollTopBtn.visible:hover {
             transform: scale(1.1);
         }
 
@@ -316,7 +316,8 @@
             const sig = sigEl.value;
             const wickInput = wickEl.value;
             const wick = parseFloat(wickInput);
-            const tp1Check = document.getElementById(tp1CheckId).checked;
+            const tp1CheckEl = document.getElementById(tp1CheckId);
+            const tp1Check = tp1CheckEl ? tp1CheckEl.checked : false;
             
             // TP2 might not exist (H1 case)
             const tp2CheckEl = document.getElementById(tp2CheckId);
@@ -327,7 +328,7 @@
             // Reset Styles
             if(box1) box1.className = "tp-box border rounded p-2 flex items-center justify-between";
             if(box2) box2.className = "tp-box border rounded p-2 flex items-center justify-between mt-2";
-            msgEl.innerText = ""; // Also clears innerHTML
+            if(msgEl) msgEl.innerText = ""; 
 
             if (!sig) {
                 if(tp1El) tp1El.innerText = "...";
@@ -338,8 +339,10 @@
             if (isNaN(wick) || wickInput === "") {
                 if(tp1El) tp1El.innerText = "...";
                 if(tp2El) tp2El.innerText = "...";
-                msgEl.innerText = "**รอไส้หลัง Sig**";
-                msgEl.className = "text-sm text-red-500 font-bold mt-2";
+                if(msgEl) {
+                    msgEl.innerText = "**รอไส้หลัง Sig**";
+                    msgEl.className = "text-sm text-red-500 font-bold mt-2";
+                }
                 return;
             }
 
@@ -371,21 +374,23 @@
             const tfName = prefix.toUpperCase();
             const setupName = suffix ? " (Setup 2)" : "";
             
-            // Logic for Status Message
-            if (tp2Diff === null) {
-                // Single TP Mode (H1)
-                if (tp1Check) {
-                    msgEl.innerHTML = `ครบ TP1 (จบงาน) ${tfName} ✅✅<br>เช็ครอบที่ ${wick.toFixed(2)}`;
-                    msgEl.className = "text-sm text-green-700 font-bold mt-2";
-                }
-            } else {
-                // Dual TP Mode
-                if (tp1Check && !tp2Check) {
-                    msgEl.innerHTML = `ครบ TP1 ${tfName}${setupName} แล้วที่ ${tp1Val.toFixed(2)} ✅ ยังขาด TP2 ที่ ${tp2Val.toFixed(2)}<br>เช็ครอบที่ ${wick.toFixed(2)}`;
-                    msgEl.className = "text-sm text-orange-600 font-semibold mt-2";
-                } else if (tp1Check && tp2Check) {
-                    msgEl.innerHTML = `ครบรอบ แล้วทั้ง 2 TP ${tfName}${setupName} ✅✅`;
-                    msgEl.className = "text-sm text-green-700 font-bold mt-2";
+            if(msgEl) {
+                // Logic for Status Message
+                if (tp2Diff === null) {
+                    // Single TP Mode (H1)
+                    if (tp1Check) {
+                        msgEl.innerHTML = `ครบ TP1 (จบงาน) ${tfName} ✅✅<br>เช็ครอบที่ ${wick.toFixed(2)}`;
+                        msgEl.className = "text-sm text-green-700 font-bold mt-2";
+                    }
+                } else {
+                    // Dual TP Mode
+                    if (tp1Check && !tp2Check) {
+                        msgEl.innerHTML = `ครบ TP1 ${tfName}${setupName} แล้วที่ ${tp1Val.toFixed(2)} ✅ ยังขาด TP2 ที่ ${tp2Val.toFixed(2)}<br>เช็ครอบที่ ${wick.toFixed(2)}`;
+                        msgEl.className = "text-sm text-orange-600 font-semibold mt-2";
+                    } else if (tp1Check && tp2Check) {
+                        msgEl.innerHTML = `ครบรอบ แล้วทั้ง 2 TP ${tfName}${setupName} ✅✅`;
+                        msgEl.className = "text-sm text-green-700 font-bold mt-2";
+                    }
                 }
             }
 
@@ -394,7 +399,6 @@
         }
 
         async function clearSection(prefix) {
-            // Find fields starting with prefix
             fields.forEach(key => {
                 if (key.startsWith(prefix + '-')) {
                     const el = document.getElementById(key);
@@ -404,7 +408,6 @@
                     }
                 }
             });
-            
             recalcAll();
             await saveData();
             
@@ -514,6 +517,7 @@
         }
 
         function getStatusBadge(htmlContent) {
+            if (!htmlContent) return '<span class="px-2 py-1 text-xs font-bold text-blue-500 bg-blue-100 rounded-full">Active</span>';
             if (htmlContent.includes("✅✅")) return '<span class="px-2 py-1 text-xs font-bold text-white bg-green-500 rounded-full shadow">Complete</span>';
             if (htmlContent.includes("✅")) return '<span class="px-2 py-1 text-xs font-bold text-white bg-orange-400 rounded-full shadow">TP1 Hit</span>';
             if (htmlContent.includes("รอไส้")) return '<span class="px-2 py-1 text-xs font-bold text-gray-500 bg-gray-200 rounded-full">Waiting</span>';
@@ -529,18 +533,23 @@
             const timeframes = ['mn', 'wk', 'd', 'h4', 'h1'];
             
             timeframes.forEach(tf => {
-                const s1 = document.getElementById(`${tf}-sig`).value;
-                // Safe access for Setup 2 elements (H1 might not have them)
-                const toggleEl = document.getElementById(`${tf}-toggle-2`);
-                const s2El = document.getElementById(`${tf}-sig-2`);
+                const s1El = document.getElementById(`${tf}-sig`);
+                const s1 = s1El ? s1El.value : "";
                 
+                // Safe access for Setup 2 elements
+                const toggleEl = document.getElementById(`${tf}-toggle-2`);
                 const toggle2 = toggleEl ? toggleEl.checked : false;
-                const s2 = s2El ? s2El.value : "";
+                
+                let s2 = "";
+                if(toggle2) {
+                    const s2El = document.getElementById(`${tf}-sig-2`);
+                    s2 = s2El ? s2El.value : "";
+                }
 
-                if(s1.includes("Buy")) buyCount++;
-                if(s1.includes("Sell")) sellCount++;
-                if(toggle2 && s2.includes("Buy")) buyCount++;
-                if(toggle2 && s2.includes("Sell")) sellCount++;
+                if(s1 && s1.includes("Buy")) buyCount++;
+                if(s1 && s1.includes("Sell")) sellCount++;
+                if(toggle2 && s2 && s2.includes("Buy")) buyCount++;
+                if(toggle2 && s2 && s2.includes("Sell")) sellCount++;
             });
 
             let sentimentHTML = '';
@@ -574,9 +583,14 @@
                 </div>`;
             }
 
-            const drPrice = document.getElementById('dr-price').value || '-';
-            const drRes = document.getElementById('dr-res').innerText;
-            const drSup = document.getElementById('dr-sup').innerText;
+            const drPriceEl = document.getElementById('dr-price');
+            const drPrice = drPriceEl ? drPriceEl.value || '-' : '-';
+            
+            const drResEl = document.getElementById('dr-res');
+            const drRes = drResEl ? drResEl.innerText : "-";
+            
+            const drSupEl = document.getElementById('dr-sup');
+            const drSup = drSupEl ? drSupEl.innerText : "-";
             
             let html = sentimentHTML;
 
@@ -597,35 +611,55 @@
                 </div>
             </div>`;
 
-            // แก้ไขตรงนี้จาก grid-cols-1 เป็น grid-cols-2
             html += `<div class="grid grid-cols-2 md:grid-cols-5 gap-3">`;
 
             timeframes.forEach(tf => {
-                const sig1 = document.getElementById(`${tf}-sig`).value;
-                const wick1 = document.getElementById(`${tf}-wick`).value;
-                const tp1_1 = document.getElementById(`${tf}-tp1-val`).innerText;
+                // Setup 1 - Safe Access
+                const s1El = document.getElementById(`${tf}-sig`);
+                const sig1 = s1El ? s1El.value : "";
                 
-                // Safe access for TP2 (H1 doesn't have it)
-                const tp2El = document.getElementById(`${tf}-tp2-val`);
-                const tp2_1 = tp2El ? tp2El.innerText : null;
+                const w1El = document.getElementById(`${tf}-wick`);
+                const wick1 = w1El ? w1El.value : "";
                 
-                const msg1 = document.getElementById(`${tf}-msg`).innerHTML;
+                const tp1_1El = document.getElementById(`${tf}-tp1-val`);
+                const tp1_1 = tp1_1El ? tp1_1El.innerText : "";
+                
+                const tp2_1El = document.getElementById(`${tf}-tp2-val`);
+                const tp2_1 = tp2_1El ? tp2_1El.innerText : null;
+                
+                const msg1El = document.getElementById(`${tf}-msg`);
+                const msg1 = msg1El ? msg1El.innerHTML : "";
 
-                // Safe access for Setup 2
+                // Setup 2 - Safe Access
                 const toggleEl = document.getElementById(`${tf}-toggle-2`);
                 const toggle2 = toggleEl ? toggleEl.checked : false;
                 
                 let sig2 = "", wick2 = "", tp1_2 = "", tp2_2 = "", msg2 = "";
                 if(toggle2) {
-                    sig2 = document.getElementById(`${tf}-sig-2`).value;
-                    wick2 = document.getElementById(`${tf}-wick-2`).value;
-                    tp1_2 = document.getElementById(`${tf}-tp1-val-2`).innerText;
-                    tp2_2 = document.getElementById(`${tf}-tp2-val-2`).innerText;
-                    msg2 = document.getElementById(`${tf}-msg-2`).innerHTML;
+                    const s2El = document.getElementById(`${tf}-sig-2`);
+                    sig2 = s2El ? s2El.value : "";
+                    
+                    const w2El = document.getElementById(`${tf}-wick-2`);
+                    wick2 = w2El ? w2El.value : "";
+                    
+                    const tp1_2El = document.getElementById(`${tf}-tp1-val-2`);
+                    tp1_2 = tp1_2El ? tp1_2El.innerText : "";
+                    
+                    const tp2_2El = document.getElementById(`${tf}-tp2-val-2`);
+                    tp2_2 = tp2_2El ? tp2_2El.innerText : "";
+                    
+                    const msg2El = document.getElementById(`${tf}-msg-2`);
+                    msg2 = msg2El ? msg2El.innerHTML : "";
                 }
 
-                const low = document.getElementById(`${tf}-low`).value;
-                const high = document.getElementById(`${tf}-high`).value;
+                const lowEl = document.getElementById(`${tf}-low`);
+                const low = lowEl ? lowEl.value : "";
+                
+                const highEl = document.getElementById(`${tf}-high`);
+                const high = highEl ? highEl.value : "";
+                
+                // Calculate Sideway Range
+                const rangeDiff = (low && high && !isNaN(low) && !isNaN(high)) ? (parseFloat(high) - parseFloat(low)).toFixed(2) : null;
 
                 let headerColor = "bg-gray-100 text-gray-700";
                 if(tf === 'mn') headerColor = "bg-indigo-100 text-indigo-800";
@@ -687,15 +721,20 @@
                             ` : ''}
 
                             ${(low || high) ? `
-                            <div class="mt-auto bg-gray-50 rounded p-2 border border-gray-100">
-                                <div class="flex justify-between text-[10px] text-gray-500 mb-1">
-                                    <span>High</span>
-                                    <span class="font-mono text-gray-700">${high || '-'}</span>
+                            <div class="mt-auto bg-gradient-to-br from-slate-50 to-white rounded-md border border-slate-200 p-2 relative overflow-hidden group">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[9px] font-bold text-red-400 uppercase tracking-wider">High</span>
+                                    <span class="font-mono text-xs font-bold text-slate-700">${high || '-'}</span>
                                 </div>
-                                <div class="w-full h-1 bg-gray-200 rounded-full mb-1"></div>
-                                <div class="flex justify-between text-[10px] text-gray-500">
-                                    <span>Low</span>
-                                    <span class="font-mono text-gray-700">${low || '-'}</span>
+                                
+                                <div class="relative h-2 w-full bg-slate-100 rounded-full my-1 flex items-center justify-center overflow-hidden">
+                                    <div class="absolute inset-0 bg-gradient-to-r from-green-100 to-red-100 opacity-50"></div>
+                                    ${rangeDiff ? `<span class="relative z-10 text-[8px] font-bold text-slate-500 bg-white/80 px-1.5 rounded-full shadow-sm">Range: ${rangeDiff}</span>` : ''}
+                                </div>
+
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[9px] font-bold text-green-500 uppercase tracking-wider">Low</span>
+                                    <span class="font-mono text-xs font-bold text-slate-700">${low || '-'}</span>
                                 </div>
                             </div>
                             ` : ''}
@@ -1137,14 +1176,14 @@
                         </div>
                         <div class="space-y-2">
                             <div id="h4-tp1-box" class="tp-box border rounded p-2 flex items-center justify-between">
-                                <span class="font-semibold text-sm">TP1 H4 (+/- 15) : <span id="h4-tp1-val">...</span></span>
+                                <span class="font-semibold text-sm">TP1 H4 (+/- 15) : <span id="h4-tp1-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="h4-tp1-check">TP</label>
                                     <input type="checkbox" id="h4-tp1-check" class="tp-checkbox">
                                 </div>
                             </div>
                             <div id="h4-tp2-box" class="tp-box border rounded p-2 flex items-center justify-between mt-2">
-                                <span class="font-semibold text-sm">TP2 H4 (+/- 30) : <span id="h4-tp2-val">...</span></span>
+                                <span class="font-semibold text-sm">TP2 H4 (+/- 30) : <span id="h4-tp2-val-2">...</span></span>
                                 <div class="flex items-center gap-2">
                                     <label class="text-sm cursor-pointer" for="h4-tp2-check">TP</label>
                                     <input type="checkbox" id="h4-tp2-check" class="tp-checkbox">
