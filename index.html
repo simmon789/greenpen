@@ -597,7 +597,8 @@
                 </div>
             </div>`;
 
-            html += `<div class="grid grid-cols-1 md:grid-cols-5 gap-3">`;
+            // แก้ไขตรงนี้จาก grid-cols-1 เป็น grid-cols-2
+            html += `<div class="grid grid-cols-2 md:grid-cols-5 gap-3">`;
 
             timeframes.forEach(tf => {
                 const sig1 = document.getElementById(`${tf}-sig`).value;
