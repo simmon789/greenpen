@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gold Trading Journal Pro</title>
+    <title>Gold Trading Journal Pro + Telegram</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Fonts -->
@@ -104,8 +104,8 @@
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
         }
 
-        /* Confirmation Modal Styles */
-        #confirmModal {
+        /* Modal Styles */
+        .modal {
             display: none;
             position: fixed;
             z-index: 9999;
@@ -219,6 +219,7 @@
         // --- Init ---
         document.addEventListener('DOMContentLoaded', async () => {
             initBinanceWS();
+            initTelegram(); // Init Telegram Settings
 
             try {
                 const app = initializeApp(firebaseConfig);
@@ -244,6 +245,236 @@
                 document.getElementById('status-indicator').className = "text-sm text-red-600 font-medium bg-red-50 px-2 py-1 rounded-full border border-red-200";
             }
         });
+
+        // --- Telegram Integration Logic ---
+        // ฝังค่าตามที่ร้องขอ
+        let telegramConfig = {
+            botToken: '8565859424:AAHAKUazzchJAe00eY5Dh4yZnXDYwvr8huk',
+            chatId: '-5031962716',
+            enabled: true
+        };
+        
+        // Anti-Spam / Cooldown for Live Alerts
+        let alertCooldowns = new Map(); 
+        const COOLDOWN_MINUTES = 5; 
+
+        function initTelegram() {
+            const savedConfig = localStorage.getItem('telegramConfig');
+            if (savedConfig) {
+                // ถ้า user เคยบันทึกค่าอื่นไว้ ให้ใช้ค่านั้น (หรือจะลบส่วนนี้ออกเพื่อบังคับใช้ค่าฝังตลอดก็ได้)
+                // ในที่นี้ขออนุญาตใช้ค่าที่ฝังเป็น Default ถ้าไม่มีการบันทึกใหม่
+                const parsed = JSON.parse(savedConfig);
+                // แต่ถ้า user บันทึกไว้แล้ว แต่อยากใช้ค่าใหม่ที่ฝัง ให้ไปกดบันทึกใหม่ หรือเคลียร์ cache
+                // เพื่อความสะดวก ผมจะให้ความสำคัญกับค่าที่ฝัง ถ้าใน localStorage เป็นค่าว่าง
+                if(parsed.botToken) telegramConfig.botToken = parsed.botToken;
+                if(parsed.chatId) telegramConfig.chatId = parsed.chatId;
+                if(parsed.enabled !== undefined) telegramConfig.enabled = parsed.enabled;
+            }
+            
+            // Set values to UI
+            document.getElementById('tg-bot-token').value = telegramConfig.botToken;
+            document.getElementById('tg-chat-id').value = telegramConfig.chatId;
+            document.getElementById('tg-enable').checked = telegramConfig.enabled;
+        }
+
+        window.saveTelegramSettings = () => {
+            telegramConfig.botToken = document.getElementById('tg-bot-token').value.trim();
+            telegramConfig.chatId = document.getElementById('tg-chat-id').value.trim();
+            telegramConfig.enabled = document.getElementById('tg-enable').checked;
+            
+            localStorage.setItem('telegramConfig', JSON.stringify(telegramConfig));
+            window.closeModal('telegramModal');
+            alert('บันทึกการตั้งค่า Telegram เรียบร้อยแล้ว');
+        };
+
+        // ฟังก์ชันใหม่สำหรับทดสอบการเชื่อมต่อ
+        window.testTelegramConnection = async () => {
+            // อ่านค่าสดจาก Input เลย (เผื่อยังไม่ได้กดบันทึก)
+            const token = document.getElementById('tg-bot-token').value.trim();
+            const chatId = document.getElementById('tg-chat-id').value.trim();
+
+            if (!token || !chatId) {
+                alert("กรุณากรอก Token และ Chat ID ให้ครบถ้วน");
+                return;
+            }
+
+            const btn = document.getElementById('btn-test-tg');
+            const originalText = btn.innerText;
+            btn.innerText = "กำลังทดสอบ...";
+            btn.disabled = true;
+
+            const msg = `🔔 <b>ทดสอบการเชื่อมต่อ</b>\n\nสวัสดีครับ! บอทใช้งานได้แล้ว ✅\nเวลา: ${new Date().toLocaleTimeString('th-TH')}`;
+            const encodedText = encodeURIComponent(msg);
+            const url = `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodedText}&parse_mode=HTML`;
+
+            try {
+                // ใช้ no-cors เหมือนเดิม แต่เพิ่ม alert แจ้งเตือน
+                await fetch(url, { method: 'GET', mode: 'no-cors' });
+                alert("ส่งคำสั่งทดสอบแล้ว! 📨\n\nถ้าไม่มีข้อความเข้า Telegram ให้ตรวจสอบ:\n1. คุณกด Start คุยกับบอทหรือยัง (ถ้าส่งส่วนตัว)?\n2. ดึงบอทเข้ากลุ่มหรือยัง (ถ้าส่งเข้ากลุ่ม)?\n3. Token/Chat ID ถูกต้องหรือไม่?");
+            } catch (e) {
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + e.message);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        };
+
+        async function sendTelegramMessage(text) {
+            if (!telegramConfig.enabled || !telegramConfig.botToken || !telegramConfig.chatId) {
+                console.log("Telegram disabled or missing config");
+                return false;
+            }
+
+            // Encode params for GET request
+            const encodedText = encodeURIComponent(text);
+            const url = `https://api.telegram.org/bot${telegramConfig.botToken}/sendMessage?chat_id=${telegramConfig.chatId}&text=${encodedText}&parse_mode=HTML`;
+            
+            // Timeout logic
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 sec timeout
+
+            try {
+                // Use mode: 'no-cors' to bypass browser CORS checks for sending (Opaque response)
+                await fetch(url, { 
+                    method: 'GET',
+                    mode: 'no-cors',
+                    signal: controller.signal
+                });
+                
+                // With no-cors, we can't check response.ok or status. 
+                // We assume success if no network error occurred.
+                console.log("Telegram request sent (Opaque/No-CORS)");
+                return true; 
+
+            } catch (error) {
+                console.error("Telegram Send Failed:", error);
+                if (error.name === 'AbortError') {
+                    // Silent fail or alert depending on context
+                }
+                return false;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
+        // --- Confluence to Telegram ---
+        window.sendConfluenceToTelegram = async () => {
+            const btn = document.getElementById('btn-send-tg');
+            const originalText = btn.innerHTML;
+            
+            try {
+                btn.innerHTML = 'Sending...';
+                btn.disabled = true;
+
+                const date = document.getElementById('date').value || 'วันนี้';
+                let message = `📊 <b>รายงานแผนเทรด (Confluence Zones)</b>\n📅 วันที่: ${date}\n\n`;
+
+                // Sentiment
+                let buyC = 0, sellC = 0;
+                ['mn', 'wk', 'd', 'h4', 'h1'].forEach(tf => {
+                    const s1El = document.getElementById(`${tf}-sig`);
+                    const s1 = s1El ? s1El.value : "";
+                    if(s1.includes("Buy")) buyC++; if(s1.includes("Sell")) sellC++;
+                    
+                    const toggleEl = document.getElementById(`${tf}-toggle-2`);
+                    const t2 = toggleEl ? toggleEl.checked : false; 
+                    
+                    const s2El = document.getElementById(`${tf}-sig-2`);
+                    const s2 = s2El ? s2El.value : "";
+                    if(t2 && s2.includes("Buy")) buyC++; if(t2 && s2.includes("Sell")) sellC++;
+                });
+
+                if (buyC > sellC) message += `🐂 <b>Sentiment: BULLISH</b> (มองขึ้น)\n`;
+                else if (sellC > buyC) message += `🐻 <b>Sentiment: BEARISH</b> (มองลง)\n`;
+                else message += `⚖️ <b>Sentiment: MIXED</b> (ผันผวน)\n`;
+                
+                message += `------------------------------\n`;
+
+                // Daily Range
+                const drPrice = document.getElementById('dr-price').value;
+                if(drPrice) {
+                    const res = (parseFloat(drPrice) + 5).toFixed(2);
+                    const sup = (parseFloat(drPrice) - 5).toFixed(2);
+                    message += `🏙 <b>กรอบวัน (07:00)</b>: ${drPrice}\n🔴 ต้าน: ${res} | 🟢 รับ: ${sup}\n\n`;
+                }
+
+                // Get Clusters
+                const confCards = document.querySelectorAll('.conf-card');
+                
+                if (confCards.length === 0) {
+                    message += `<i>*ยังไม่พบโซนราคาที่ทับซ้อนกันอย่างมีนัยสำคัญ*</i>\n`;
+                } else {
+                    message += `🎯 <b>โซนราคาสำคัญ (Focus Zones):</b>\n`;
+                    confCards.forEach(card => {
+                        const title = card.querySelector('.text-indigo-700').innerText; 
+                        const count = card.querySelector('.text-indigo-400').innerText; 
+                        message += `\n📍 <b>${title}</b> (${count})\n`;
+                        
+                        const items = card.querySelectorAll('.flex.justify-between');
+                        items.forEach(item => {
+                            const label = item.children[0].innerText;
+                            const val = item.children[1].innerText;
+                            message += `   ▪️ ${label}: <code>${val}</code>\n`;
+                        });
+                    });
+                }
+
+                message += `\n------------------------------\n`;
+                message += `<i>Generated by Gold Trading Journal Pro</i>`;
+
+                await sendTelegramMessage(message);
+                
+                alert("ส่งคำสั่งไปยัง Telegram แล้ว ✅\n(หากไม่ได้รับข้อความ กรุณาเช็คว่ากด Start บอทหรือยัง)");
+                
+            } catch (err) {
+                console.error("Main Send Error:", err);
+                alert("เกิดข้อผิดพลาดในการเตรียมข้อมูล");
+            } finally {
+                // Ensure button is always reset
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        };
+
+        // --- Live Alert to Telegram Logic ---
+        function checkAndSendLiveAlert(tfName, type, targetPrice, dist, context, currentBrokerPrice) {
+            // Unique ID for this specific alert: e.g., "H4-TP1-2650.00"
+            const alertId = `${tfName}-${type}-${targetPrice.toFixed(2)}`;
+            const now = Date.now();
+            
+            // Check Cooldown
+            if (alertCooldowns.has(alertId)) {
+                const lastTime = alertCooldowns.get(alertId);
+                if (now - lastTime < COOLDOWN_MINUTES * 60 * 1000) {
+                    return; // Still in cooldown
+                }
+            }
+
+            // Prepare Message
+            let emoji = "🔔";
+            if (type.includes("TP")) emoji = "💰";
+            if (type.includes("Entry")) emoji = "🚀";
+
+            let msg = `${emoji} <b>LIVE ALERT: ราคาเข้าโซน!</b>\n\n`;
+            msg += `📌 <b>Setup: ${tfName}</b> (${type})\n`;
+            msg += `-----------------------------\n`;
+            msg += `💎 <b>ราคาปัจจุบัน:</b> <code>${currentBrokerPrice.toFixed(2)}</code>\n`;
+            msg += `📉 <b>ระยะห่าง:</b> <b>${dist.toFixed(2)}</b> จุด\n`;
+            msg += `-----------------------------\n`;
+            msg += `📋 <b>รายละเอียดแผน:</b>\n`;
+            msg += `🚀 <b>Entry:</b> ${context.entry}\n`;
+            msg += `💰 <b>TP1:</b> ${context.tp1}\n`;
+            msg += `💰 <b>TP2:</b> ${context.tp2}\n`;
+            msg += `\n<i>Generated by Gold Trading Journal Pro</i>`;
+            
+            // Send
+            sendTelegramMessage(msg).then(success => {
+                if (success) {
+                    console.log(`Alert sent for ${alertId}`);
+                    alertCooldowns.set(alertId, now);
+                }
+            });
+        }
 
         // --- Binance WebSocket ---
         let currentBinancePrice = 0;
@@ -288,7 +519,7 @@
             
             document.getElementById('broker-price-display').innerText = brokerPrice.toFixed(2);
             
-            // Checks alerts for Top Intelligence Dashboard
+            // Checks alerts for Top Intelligence Dashboard & Telegram
             checkAlerts(brokerPrice);
         }
 
@@ -297,14 +528,22 @@
             const timeframes = ['mn', 'wk', 'd', 'h4', 'h1'];
             let alertsHtml = '';
             
-            const threshold = 3.0; // Adjusted to 3.0 as requested
+            const threshold = 3.0; 
 
             timeframes.forEach(tf => {
-                checkSetup(tf, '', currentPrice, threshold, (html) => alertsHtml += html);
+                checkSetup(tf, '', currentPrice, threshold, (html, tfName, type, target, dist, context) => {
+                    alertsHtml += html;
+                    // Trigger Telegram Alert
+                    checkAndSendLiveAlert(tfName, type, target, dist, context, currentPrice);
+                });
                 
                 const toggle = document.getElementById(`${tf}-toggle-2`);
                 if (toggle && toggle.checked) {
-                    checkSetup(tf, '-2', currentPrice, threshold, (html) => alertsHtml += html);
+                    checkSetup(tf, '-2', currentPrice, threshold, (html, tfName, type, target, dist, context) => {
+                        alertsHtml += html;
+                        // Trigger Telegram Alert
+                        checkAndSendLiveAlert(tfName, type, target, dist, context, currentPrice);
+                    });
                 }
             });
 
@@ -334,31 +573,41 @@
             const wick = parseFloat(wickEl.value);
             const tfName = tf.toUpperCase() + (suffix ? " (S2)" : "");
             
+            // Get Plan Context (Entry, TP1, TP2)
+            const tp1El = document.getElementById(`${tf}-tp1-val${suffix}`);
+            const tp2El = document.getElementById(`${tf}-tp2-val${suffix}`);
+            
+            const tp1Val = (tp1El && tp1El.innerText !== "..." && tp1El.innerText !== "") ? tp1El.innerText : "-";
+            const tp2Val = (tp2El && tp2El.innerText !== "..." && tp2El.innerText !== "") ? tp2El.innerText : "-";
+
+            const context = { entry: wick.toFixed(2), tp1: tp1Val, tp2: tp2Val };
+
             // Check Entry
             const distEntry = Math.abs(price - wick);
             if (distEntry <= threshold) {
-                callback(createAlertItem(tfName, "จุดเข้า/เช็ครอบ", wick, distEntry, "bg-white border-l-4 border-blue-500 text-gray-700 shadow-sm"));
+                const html = createAlertItem(tfName, "จุดเข้า/เช็ครอบ", wick, distEntry, "bg-white border-l-4 border-blue-500 text-gray-700 shadow-sm");
+                callback(html, tfName, "จุดเข้า/เช็ครอบ", wick, distEntry, context);
             }
 
             // Check TP1
-            const tp1El = document.getElementById(`${tf}-tp1-val${suffix}`);
             if (tp1El && tp1El.innerText !== "..." && tp1El.innerText !== "") {
                 const tp1 = parseFloat(tp1El.innerText);
                 const distTp1 = Math.abs(price - tp1);
                 
                 if (distTp1 <= threshold) {
-                    callback(createAlertItem(tfName, "TP1", tp1, distTp1, "bg-white border-l-4 border-orange-500 text-gray-700 shadow-sm"));
+                    const html = createAlertItem(tfName, "TP1", tp1, distTp1, "bg-white border-l-4 border-orange-500 text-gray-700 shadow-sm");
+                    callback(html, tfName, "TP1", tp1, distTp1, context);
                 }
             }
 
             // Check TP2
-            const tp2El = document.getElementById(`${tf}-tp2-val${suffix}`);
             if (tp2El && tp2El.innerText !== "..." && tp2El.innerText !== "") {
                 const tp2 = parseFloat(tp2El.innerText);
                 const distTp2 = Math.abs(price - tp2);
                 
                 if (distTp2 <= threshold) {
-                    callback(createAlertItem(tfName, "TP2", tp2, distTp2, "bg-white border-l-4 border-emerald-500 text-gray-700 shadow-sm"));
+                    const html = createAlertItem(tfName, "TP2", tp2, distTp2, "bg-white border-l-4 border-emerald-500 text-gray-700 shadow-sm");
+                    callback(html, tfName, "TP2", tp2, distTp2, context);
                 }
             }
         }
@@ -566,18 +815,18 @@
             saveData();
         };
 
-        window.openClearAllModal = () => {
-            const modal = document.getElementById('confirmModal');
-            modal.style.display = 'flex';
+        window.openModal = (id) => {
+            const modal = document.getElementById(id);
+            if(modal) modal.style.display = 'flex';
         };
 
-        window.closeModal = () => {
-            const modal = document.getElementById('confirmModal');
-            modal.style.display = 'none';
+        window.closeModal = (id) => {
+            const modal = document.getElementById(id);
+            if(modal) modal.style.display = 'none';
         };
 
         window.confirmClearAll = async () => {
-            window.closeModal();
+            window.closeModal('confirmModal');
             fields.forEach(key => {
                 const el = document.getElementById(key);
                 if(el) {
@@ -606,6 +855,13 @@
             summaryHTML = summaryHTML.replace(/text-blue-200/g, 'text-blue-700').replace(/border-blue-700/g, 'border-blue-200').replace(/bg-blue-900\/50/g, 'bg-blue-50');
             summaryHTML = summaryHTML.replace(/text-orange-200/g, 'text-orange-700').replace(/border-orange-700/g, 'border-orange-200').replace(/bg-orange-900\/50/g, 'bg-orange-50');
             summaryHTML = summaryHTML.replace(/text-red-200/g, 'text-red-700').replace(/border-red-700/g, 'border-red-200').replace(/bg-red-900\/50/g, 'bg-red-50');
+            
+            // Hide Telegram Button in Print
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = summaryHTML;
+            const btn = tempDiv.querySelector('#btn-send-tg');
+            if(btn) btn.remove();
+            summaryHTML = tempDiv.innerHTML;
 
             const noteContent = document.getElementById('daily-note').value;
             const printArea = document.getElementById('print-output');
@@ -865,6 +1121,13 @@
                     <span class="text-lg md:text-3xl font-bold text-green-600 leading-tight mt-1">${drSup}</span>
                 </div>
             </div>`;
+            
+            // Telegram Button in Summary
+            html += `<div class="flex justify-end mb-4 no-print">
+                <button id="btn-send-tg" onclick="sendConfluenceToTelegram()" class="flex items-center gap-2 px-3 py-1.5 bg-sky-500 text-white text-sm font-bold rounded-lg shadow hover:bg-sky-600 transition-colors">
+                    <span>✈️ ส่งเข้า Telegram</span>
+                </button>
+            </div>`;
 
             // --- TF Cards Grid ---
             html += `<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">`;
@@ -954,13 +1217,59 @@
     </button>
 
     <!-- Confirmation Modal -->
-    <div id="confirmModal" onclick="if(event.target === this) closeModal()">
+    <div id="confirmModal" class="modal" onclick="if(event.target === this) closeModal('confirmModal')">
         <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 border-2 border-red-200">
             <h3 class="text-xl font-bold text-red-600 mb-2">ยืนยันการล้างข้อมูล</h3>
             <p class="text-gray-600 mb-6">คุณต้องการล้างข้อมูลทั้งหมดใน Journal นี้ใช่หรือไม่? <br><span class="text-xs text-red-500">*การกระทำนี้ไม่สามารถย้อนกลับได้</span></p>
             <div class="flex justify-end gap-3">
-                <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 shadow-sm hover:shadow">ยกเลิก</button>
+                <button onclick="closeModal('confirmModal')" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 shadow-sm hover:shadow">ยกเลิก</button>
                 <button onclick="confirmClearAll()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 shadow-sm hover:shadow-md">ยืนยัน ล้างข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Telegram Settings Modal -->
+    <div id="telegramModal" class="modal" onclick="if(event.target === this) closeModal('telegramModal')">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4 border border-sky-200">
+            <h3 class="text-xl font-bold text-sky-600 mb-4 flex items-center gap-2">
+                ⚙️ ตั้งค่า Telegram Alerts
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Telegram Bot Token</label>
+                    <input type="text" id="tg-bot-token" class="w-full p-2 border rounded text-sm font-mono bg-gray-50" placeholder="123456789:ABCdef...">
+                    <p class="text-[10px] text-gray-400 mt-1">สร้าง Bot ได้ที่ @BotFather</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Chat ID (ส่วนตัว หรือ กลุ่ม)</label>
+                    <input type="text" id="tg-chat-id" class="w-full p-2 border rounded text-sm font-mono bg-gray-50" placeholder="-100xxxx (กลุ่ม) หรือ 1234xxxx (ส่วนตัว)">
+                    <div class="text-[10px] text-gray-500 mt-1 bg-gray-50 p-2 rounded border border-gray-100">
+                        <p class="font-bold mb-1">วิธีหา Chat ID:</p>
+                        <ul class="list-disc pl-4 space-y-1">
+                            <li><b>ส่งส่วนตัว:</b> ทักแชท <b>@userinfobot</b> แล้วเอาเลข Id มาใส่</li>
+                            <li><b>ส่งเข้ากลุ่ม (แนะนำ):</b> 
+                                <ol class="list-decimal pl-4 mt-1 space-y-1">
+                                    <li>เชิญบอท <b>@MissRose_bot</b> เข้ากลุ่ม</li>
+                                    <li>พิมพ์คำสั่ง <code>/id</code> ในกลุ่ม</li>
+                                    <li>ก๊อปปี้เลข Chat ID (ต้องมีเครื่องหมายลบนำหน้า เช่น -100...)</li>
+                                </ol>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="tg-enable" class="tp-checkbox">
+                    <label for="tg-enable" class="text-sm font-bold text-gray-700">เปิดใช้งานการแจ้งเตือน</label>
+                </div>
+            </div>
+            <div class="flex justify-between mt-6 pt-4 border-t border-gray-100">
+                <button id="btn-test-tg" onclick="testTelegramConnection()" class="px-3 py-2 bg-orange-500 text-white text-xs font-bold rounded hover:bg-orange-600 shadow-sm transition-colors flex items-center gap-1">
+                    🔔 ทดสอบส่งข้อความ (Test)
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeModal('telegramModal')" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">ปิด</button>
+                    <button onclick="saveTelegramSettings()" class="px-4 py-2 bg-sky-500 text-white rounded hover:bg-sky-600 shadow-sm">บันทึก</button>
+                </div>
             </div>
         </div>
     </div>
@@ -973,20 +1282,26 @@
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-100 no-print">
             <div>
-                <h1 class="text-2xl md:text-3xl font-bold text-pastel-text drop-shadow-sm">Trading Journal</h1>
+                <h1 class="text-2xl md:text-3xl font-bold text-pastel-text drop-shadow-sm">Trading Journal Pro</h1>
                 <p class="text-sm text-gray-500 mt-1" id="status-indicator">สถานะ: กำลังเชื่อมต่อ...</p>
             </div>
-            <div class="mt-4 md:mt-0 flex gap-2 flex-wrap justify-center">
+            <div class="mt-4 md:mt-0 flex gap-2 flex-wrap justify-center items-center">
                 <button onclick="saveData()" class="px-4 py-2 bg-pastel-accent text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200">บันทึก Cloud</button>
                 <button onclick="printSummary()" class="px-4 py-2 bg-purple-500 text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 hover:bg-purple-600">พิมพ์(สรุป) PDF</button>
-                <button onclick="openClearAllModal()" class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 hover:bg-red-600">ล้างทั้งหมด</button>
+                <button onclick="openModal('confirmModal')" class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 hover:bg-red-600">ล้างทั้งหมด</button>
+                
+                <!-- Telegram Settings Button -->
+                <button onclick="openModal('telegramModal')" class="p-2 ml-2 text-gray-400 hover:text-sky-500 hover:bg-sky-50 rounded-full transition-colors" title="ตั้งค่า Telegram">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
             </div>
         </header>
 
         <!-- Main Form -->
         <div class="main-form-section space-y-8">
-            
-            <!-- NEW SECTION: Live Monitor & Intelligence (TOP) - MOVED TO BOTTOM AS REQUESTED -->
             
             <!-- Daily Plan -->
             <section class="bg-pastel-bg p-6 rounded-2xl border border-pastel-header shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -1066,7 +1381,7 @@
                 <!-- Hidden Note Container for Print Only -->
                 <div id="print-daily-note" class="hidden mt-4 pt-4 border-t border-gray-300"></div>
                 
-                <!-- NEW SECTION: Live Monitor (MOVED TO BOTTOM AS REQUESTED) -->
+                <!-- NEW SECTION: Live Monitor -->
                 <div id="live-monitor-section" class="mt-8 bg-gray-900 text-white p-4 rounded-xl shadow-lg relative overflow-hidden border border-gray-700 no-print">
                     <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1106,7 +1421,7 @@
                         </div>
                     </div>
 
-                    <!-- Intelligence Dashboard (Confluence & Alerts) - MOVED HERE -->
+                    <!-- Intelligence Dashboard (Confluence & Alerts) -->
                     <div id="intelligence-dashboard-container" class="bg-gray-100 rounded-lg p-3 text-gray-800">
                         <div id="intelligence-dashboard-content">
                             <p class="text-gray-400 text-xs italic text-center">กำลังโหลดข้อมูลวิเคราะห์...</p>
