@@ -836,7 +836,7 @@
 
             let html = sentimentHTML;
 
-            // --- Grid Layout for Cards (Existing) ---
+            // --- Grid Layout for Cards (OPTIMIZED FOR MOBILE) ---
             const drPriceEl = document.getElementById('dr-price');
             const drPrice = drPriceEl ? drPriceEl.value || '-' : '-';
             const drResEl = document.getElementById('dr-res');
@@ -845,19 +845,24 @@
             const drSup = drSupEl ? drSupEl.innerText : "-";
 
             html += `
-            <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                <div class="bg-gradient-to-br from-red-50 to-white p-4 rounded-xl shadow-md border border-red-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <p class="text-xs text-red-500 font-bold uppercase tracking-wider">Resistance (ต้าน)</p>
-                    <p class="text-3xl font-bold text-gray-800 mt-2 drop-shadow-sm">${drRes}</p>
+            <div class="mb-6 grid grid-cols-3 gap-2 md:gap-4 text-center">
+                <!-- Resistance -->
+                <div class="bg-red-50 rounded-lg border border-red-100 p-2 md:p-4 flex flex-col justify-center shadow-sm">
+                    <span class="text-[10px] md:text-xs text-red-400 font-bold uppercase tracking-wide">Resistance (ต้าน)</span>
+                    <span class="text-lg md:text-3xl font-bold text-red-600 leading-tight mt-1">${drRes}</span>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-200 relative overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-300 to-blue-500"></div>
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Open Price</p>
-                    <p class="text-3xl font-bold text-blue-600 mt-2 drop-shadow-sm">${drPrice}</p>
+
+                <!-- Open Price -->
+                <div class="bg-white rounded-lg border border-gray-200 p-2 md:p-4 flex flex-col justify-center shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-blue-400"></div>
+                    <span class="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-wide">Open Price</span>
+                    <span class="text-lg md:text-3xl font-bold text-blue-600 leading-tight mt-1">${drPrice}</span>
                 </div>
-                <div class="bg-gradient-to-br from-green-50 to-white p-4 rounded-xl shadow-md border border-green-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <p class="text-xs text-green-500 font-bold uppercase tracking-wider">Support (รับ)</p>
-                    <p class="text-3xl font-bold text-gray-800 mt-2 drop-shadow-sm">${drSup}</p>
+
+                <!-- Support -->
+                <div class="bg-green-50 rounded-lg border border-green-100 p-2 md:p-4 flex flex-col justify-center shadow-sm">
+                    <span class="text-[10px] md:text-xs text-green-400 font-bold uppercase tracking-wide">Support (รับ)</span>
+                    <span class="text-lg md:text-3xl font-bold text-green-600 leading-tight mt-1">${drSup}</span>
                 </div>
             </div>`;
 
