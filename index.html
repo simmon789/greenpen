@@ -297,7 +297,7 @@
             const timeframes = ['mn', 'wk', 'd', 'h4', 'h1'];
             let alertsHtml = '';
             
-            const threshold = 5.0; 
+            const threshold = 3.0; // Adjusted to 3.0 as requested
 
             timeframes.forEach(tf => {
                 checkSetup(tf, '', currentPrice, threshold, (html) => alertsHtml += html);
@@ -792,7 +792,7 @@
             intelHTML += `<div>
                 <h3 class="font-bold text-gray-700 text-sm mb-2 flex items-center gap-2">
                     🔔 สถานะราคาปัจจุบัน
-                    <span class="text-[10px] font-normal text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">Live Alerts (ระยะ 5 จุด)</span>
+                    <span class="text-[10px] font-normal text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">Live Alerts (ระยะ 3 จุด)</span>
                 </h3>
                 <div id="summary-live-alerts">
                     <p class="text-gray-400 text-xs italic text-center py-2">กำลังประมวลผลข้อมูลราคา...</p>
