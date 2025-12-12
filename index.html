@@ -1160,6 +1160,12 @@
                     msg2 = msg2El ? msg2El.innerHTML : "";
                 }
 
+                // NEW: Get checkbox states for styling
+                const isTp1Checked = document.getElementById(`${tf}-tp1-check`)?.checked;
+                const isTp2Checked = document.getElementById(`${tf}-tp2-check`)?.checked;
+                const isTp1Checked2 = document.getElementById(`${tf}-tp1-check-2`)?.checked;
+                const isTp2Checked2 = document.getElementById(`${tf}-tp2-check-2`)?.checked;
+
                 const lowEl = document.getElementById(`${tf}-low`);
                 const low = lowEl ? lowEl.value : "";
                 const highEl = document.getElementById(`${tf}-high`);
@@ -1190,9 +1196,48 @@
                                     ${getTrendIcon(sig1)}
                                     ${wick1 ? `<div class="text-gray-800 font-mono font-bold text-lg mt-1 tracking-tight">${wick1}</div><div class="mt-1 text-[10px] text-green-700 bg-green-50 rounded-full px-2 py-0.5 inline-block border border-green-100 shadow-sm">จุดเช็ครอบ: <span class="font-bold">${wick1}</span></div>` : ''}
                                 </div>
-                                ${(sig1 && wick1) ? `<div class="flex justify-between text-[10px] text-gray-500 border-t border-gray-100 pt-2 mt-1"><span>TP1: <b class="text-gray-700">${tp1_1}</b></span>${tp2_1 ? `<span>TP2: <b class="text-gray-700">${tp2_1}</b></span>` : ''}</div>` : ''}
+                                ${(sig1 && wick1) ? `
+                                <div class="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                                    <div class="flex justify-between items-center text-[10px]">
+                                        <span class="text-gray-400 font-medium">TP1</span>
+                                        <span class="flex items-center gap-1 ${isTp1Checked ? 'text-green-600 font-bold bg-green-50 px-1.5 rounded-full' : 'text-gray-700 font-bold'}">
+                                            ${tp1_1} ${isTp1Checked ? '✓' : ''}
+                                        </span>
+                                    </div>
+                                    ${tp2_1 ? `
+                                    <div class="flex justify-between items-center text-[10px]">
+                                        <span class="text-gray-400 font-medium">TP2</span>
+                                        <span class="flex items-center gap-1 ${isTp2Checked ? 'text-green-600 font-bold bg-green-50 px-1.5 rounded-full' : 'text-gray-700 font-bold'}">
+                                            ${tp2_1} ${isTp2Checked ? '✓' : ''}
+                                        </span>
+                                    </div>` : ''}
+                                </div>` : ''}
                             </div>
-                            ${(toggle2 && sig2) ? `<div class="relative border-t border-dashed border-gray-300 pt-2"><div class="flex justify-between items-start mb-1"><span class="font-bold text-gray-400 text-[10px]">S2</span>${getStatusBadge(msg2)}</div><div class="text-center py-1">${getTrendIcon(sig2)}${wick2 ? `<div class="text-gray-800 font-mono font-bold text-lg mt-1 tracking-tight">${wick2}</div><div class="mt-1 text-[10px] text-green-700 bg-green-50 rounded-full px-2 py-0.5 inline-block border border-green-100 shadow-sm">จุดเช็ครอบ: <span class="font-bold">${wick2}</span></div>` : ''}</div><div class="flex justify-between text-[10px] text-gray-500 border-t border-gray-100 pt-2 mt-1"><span>TP1: <b class="text-gray-700">${tp1_2}</b></span><span>TP2: <b class="text-gray-700">${tp2_2}</b></span></div></div>` : ''}
+                            ${(toggle2 && sig2) ? `
+                            <div class="relative border-t border-dashed border-gray-300 pt-2">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="font-bold text-gray-400 text-[10px]">S2</span>
+                                    ${getStatusBadge(msg2)}
+                                </div>
+                                <div class="text-center py-1">
+                                    ${getTrendIcon(sig2)}
+                                    ${wick2 ? `<div class="text-gray-800 font-mono font-bold text-lg mt-1 tracking-tight">${wick2}</div><div class="mt-1 text-[10px] text-green-700 bg-green-50 rounded-full px-2 py-0.5 inline-block border border-green-100 shadow-sm">จุดเช็ครอบ: <span class="font-bold">${wick2}</span></div>` : ''}
+                                </div>
+                                <div class="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                                    <div class="flex justify-between items-center text-[10px]">
+                                        <span class="text-gray-400 font-medium">TP1</span>
+                                        <span class="flex items-center gap-1 ${isTp1Checked2 ? 'text-green-600 font-bold bg-green-50 px-1.5 rounded-full' : 'text-gray-700 font-bold'}">
+                                            ${tp1_2} ${isTp1Checked2 ? '✓' : ''}
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-[10px]">
+                                        <span class="text-gray-400 font-medium">TP2</span>
+                                        <span class="flex items-center gap-1 ${isTp2Checked2 ? 'text-green-600 font-bold bg-green-50 px-1.5 rounded-full' : 'text-gray-700 font-bold'}">
+                                            ${tp2_2} ${isTp2Checked2 ? '✓' : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>` : ''}
                             ${(low || high) ? `<div class="mt-auto bg-gradient-to-br from-slate-50 to-white rounded-lg border border-slate-200 p-2 relative overflow-hidden group shadow-inner"><div class="flex justify-between items-center mb-1"><span class="text-[9px] font-bold text-red-400 uppercase tracking-wider">High</span><span class="font-mono text-xs font-bold text-slate-700">${high || '-'}</span></div><div class="relative h-2 w-full bg-slate-100 rounded-full my-1 flex items-center justify-center overflow-hidden shadow-inner"><div class="absolute inset-0 bg-gradient-to-r from-green-200 to-red-200 opacity-60"></div>${rangeDiff ? `<span class="relative z-10 text-[8px] font-bold text-slate-600 bg-white/90 px-2 py-0.5 rounded-full shadow-sm">Range: ${rangeDiff}</span>` : ''}</div><div class="flex justify-between items-center"><span class="text-[9px] font-bold text-green-500 uppercase tracking-wider">Low</span><span class="font-mono text-xs font-bold text-slate-700">${low || '-'}</span></div></div>` : ''}
                         </div>
                     </div>`;
