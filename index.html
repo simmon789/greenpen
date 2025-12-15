@@ -228,6 +228,11 @@
                     changePriceSource(e.target.value);
                 });
             }
+            
+            // Auto Update Diff every 30 minutes
+            setInterval(() => {
+                autoCalibrateDiff(true); // true = silent mode (no alert)
+            }, 30 * 60 * 1000);
 
             try {
                 const app = initializeApp(firebaseConfig);
@@ -255,6 +260,7 @@
         });
 
         // --- Telegram Integration Logic ---
+        // ฝังค่าตามที่ร้องขอ
         let telegramConfig = {
             botToken: '8565859424:AAHAKUazzchJAe00eY5Dh4yZnXDYwvr8huk',
             chatId: '-5031962716',
@@ -328,6 +334,7 @@
 
         // ฟังก์ชันใหม่สำหรับทดสอบการเชื่อมต่อ
         window.testTelegramConnection = async () => {
+            // อ่านค่าสดจาก Input เลย (เผื่อยังไม่ได้กดบันทึก)
             const token = document.getElementById('tg-bot-token').value.trim();
             const chatId = document.getElementById('tg-chat-id').value.trim();
 
@@ -346,6 +353,7 @@
             const url = `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodedText}&parse_mode=HTML`;
 
             try {
+                // ใช้ no-cors เหมือนเดิม แต่เพิ่ม alert แจ้งเตือน
                 await fetch(url, { method: 'GET', mode: 'no-cors' });
                 alert("ส่งคำสั่งทดสอบแล้ว! 📨\n\nถ้าไม่มีข้อความเข้า Telegram ให้ตรวจสอบ:\n1. คุณกด Start คุยกับบอทหรือยัง (ถ้าส่งส่วนตัว)?\n2. ดึงบอทเข้ากลุ่มหรือยัง (ถ้าส่งเข้ากลุ่ม)?\n3. Token/Chat ID ถูกต้องหรือไม่?");
             } catch (e) {
@@ -362,28 +370,39 @@
                 return false;
             }
 
+            // Encode params for GET request
             const encodedText = encodeURIComponent(text);
             const url = `https://api.telegram.org/bot${telegramConfig.botToken}/sendMessage?chat_id=${telegramConfig.chatId}&text=${encodedText}&parse_mode=HTML`;
             
+            // Timeout logic
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 sec timeout
 
             try {
+                // Use mode: 'no-cors' to bypass browser CORS checks for sending (Opaque response)
                 await fetch(url, { 
                     method: 'GET',
                     mode: 'no-cors',
                     signal: controller.signal
                 });
+                
+                // With no-cors, we can't check response.ok or status. 
+                // We assume success if no network error occurred.
                 console.log("Telegram request sent (Opaque/No-CORS)");
                 return true; 
+
             } catch (error) {
                 console.error("Telegram Send Failed:", error);
+                if (error.name === 'AbortError') {
+                    // Silent fail or alert depending on context
+                }
                 return false;
             } finally {
                 clearTimeout(timeoutId);
             }
         }
 
+        // --- Confluence to Telegram ---
         window.sendConfluenceToTelegram = async () => {
             const btn = document.getElementById('btn-send-tg');
             const originalText = btn.innerHTML;
@@ -395,6 +414,7 @@
                 const date = document.getElementById('date').value || 'วันนี้';
                 let message = `📊 <b>รายงานแผนเทรด (Confluence Zones)</b>\n📅 วันที่: ${date}\n\n`;
 
+                // Sentiment
                 let buyC = 0, sellC = 0;
                 ['mn', 'wk', 'd', 'h4', 'h1'].forEach(tf => {
                     const s1El = document.getElementById(`${tf}-sig`);
@@ -415,6 +435,7 @@
                 
                 message += `------------------------------\n`;
 
+                // Daily Range
                 const drPrice = document.getElementById('dr-price').value;
                 if(drPrice) {
                     const res = (parseFloat(drPrice) + 5).toFixed(2);
@@ -422,6 +443,7 @@
                     message += `🏙 <b>กรอบวัน (07:00)</b>: ${drPrice}\n🔴 ต้าน: ${res} | 🟢 รับ: ${sup}\n\n`;
                 }
 
+                // Get Clusters
                 const confCards = document.querySelectorAll('.conf-card');
                 
                 if (confCards.length === 0) {
@@ -453,22 +475,27 @@
                 console.error("Main Send Error:", err);
                 alert("เกิดข้อผิดพลาดในการเตรียมข้อมูล");
             } finally {
+                // Ensure button is always reset
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
         };
 
+        // --- Live Alert to Telegram Logic ---
         function checkAndSendLiveAlert(tfName, type, targetPrice, dist, context, currentBrokerPrice) {
+            // Unique ID for this specific alert: e.g., "H4-TP1-2650.00"
             const alertId = `${tfName}-${type}-${targetPrice.toFixed(2)}`;
             const now = Date.now();
             
+            // Check Cooldown (With LocalStorage Persistence)
             if (alertCooldowns.has(alertId)) {
                 const lastTime = alertCooldowns.get(alertId);
                 if (now - lastTime < COOLDOWN_MINUTES * 60 * 1000) {
-                    return; 
+                    return; // Still in cooldown
                 }
             }
 
+            // Prepare Message
             let emoji = "🔔";
             if (type.includes("TP")) emoji = "💰";
             if (type.includes("Entry")) emoji = "🚀";
@@ -485,21 +512,25 @@
             msg += `💰 <b>TP2:</b> ${context.tp2}\n`;
             msg += `\n<i>Generated by Gold Trading Journal Pro</i>`;
             
+            // Send
             sendTelegramMessage(msg).then(success => {
                 if (success) {
                     console.log(`Alert sent for ${alertId}`);
                     alertCooldowns.set(alertId, now);
-                    saveCooldowns(); 
+                    saveCooldowns(); // Persist to LocalStorage
                 }
             });
         }
         
         // --- Auto Diff Calibration ---
-        window.autoCalibrateDiff = async () => {
+        window.autoCalibrateDiff = async (isSilent = false) => {
             const btn = document.getElementById('btn-auto-diff');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '...';
-            btn.disabled = true;
+            
+            if (!isSilent) {
+                btn.innerHTML = '...';
+                btn.disabled = true;
+            }
 
             try {
                 // Fetch generic Spot Gold price (XAU/USD) from a public API that supports CORS
@@ -518,15 +549,23 @@
                         calculateBrokerPrice(); // Trigger recalculation
                         saveData(); // Save to Firebase
                         
-                        alert(`ปรับค่า Diff เรียบร้อย! ✅\n\nSpot Gold (World): ${spotPrice.toFixed(2)}\nBinance Price: ${currentBinance.toFixed(2)}\nNew Diff: ${newDiff.toFixed(2)}`);
+                        if (!isSilent) {
+                            alert(`ปรับค่า Diff เรียบร้อย! ✅\n\nSpot Gold (World): ${spotPrice.toFixed(2)}\nBinance Price: ${currentBinance.toFixed(2)}\nNew Diff: ${newDiff.toFixed(2)}`);
+                        } else {
+                            console.log(`Auto-calibrated Diff: ${newDiff.toFixed(2)} (Spot: ${spotPrice}, Binance: ${currentBinance})`);
+                        }
                     }
                 }
             } catch (e) {
                 console.error("Auto Diff Error", e);
-                alert("ไม่สามารถดึงราคาตลาดโลกได้ในขณะนี้\n(อาจติดปัญหาการเชื่อมต่อ หรือ API ปลายทาง)");
+                if (!isSilent) {
+                    alert("ไม่สามารถดึงราคาตลาดโลกได้ในขณะนี้\n(อาจติดปัญหาการเชื่อมต่อ หรือ API ปลายทาง)");
+                }
             } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                if (!isSilent) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
             }
         };
 
