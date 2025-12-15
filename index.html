@@ -247,24 +247,57 @@
         });
 
         // --- Telegram Integration Logic ---
+        // ฝังค่าตามที่ร้องขอ
         let telegramConfig = {
-            botToken: '',
-            chatId: '',
-            enabled: false
+            botToken: '8565859424:AAHAKUazzchJAe00eY5Dh4yZnXDYwvr8huk',
+            chatId: '-5031962716',
+            enabled: true
         };
         
         // Anti-Spam / Cooldown for Live Alerts
         let alertCooldowns = new Map(); 
         const COOLDOWN_MINUTES = 5; 
+        const STORAGE_KEY_COOLDOWNS = 'tg_alert_cooldowns_v2'; // Key for localStorage
+
+        // Load Cooldowns from LocalStorage
+        function loadCooldowns() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY_COOLDOWNS);
+                if (stored) {
+                    const entries = JSON.parse(stored);
+                    alertCooldowns = new Map(entries);
+                    
+                    // Cleanup old entries (older than 1 day)
+                    const now = Date.now();
+                    let changed = false;
+                    for (const [key, timestamp] of alertCooldowns) {
+                        if (now - timestamp > 24 * 60 * 60 * 1000) {
+                            alertCooldowns.delete(key);
+                            changed = true;
+                        }
+                    }
+                    if (changed) saveCooldowns();
+                }
+            } catch (e) {
+                console.error("Error loading cooldowns", e);
+            }
+        }
+
+        // Save Cooldowns to LocalStorage
+        function saveCooldowns() {
+            try {
+                localStorage.setItem(STORAGE_KEY_COOLDOWNS, JSON.stringify(Array.from(alertCooldowns.entries())));
+            } catch (e) {
+                console.error("Error saving cooldowns", e);
+            }
+        }
 
         function initTelegram() {
+            loadCooldowns(); // Load previous alert times
+
             const savedConfig = localStorage.getItem('telegramConfig');
             if (savedConfig) {
-                // ถ้า user เคยบันทึกค่าอื่นไว้ ให้ใช้ค่านั้น (หรือจะลบส่วนนี้ออกเพื่อบังคับใช้ค่าฝังตลอดก็ได้)
-                // ในที่นี้ขออนุญาตใช้ค่าที่ฝังเป็น Default ถ้าไม่มีการบันทึกใหม่
                 const parsed = JSON.parse(savedConfig);
-                // แต่ถ้า user บันทึกไว้แล้ว แต่อยากใช้ค่าใหม่ที่ฝัง ให้ไปกดบันทึกใหม่ หรือเคลียร์ cache
-                // เพื่อความสะดวก ผมจะให้ความสำคัญกับค่าที่ฝัง ถ้าใน localStorage เป็นค่าว่าง
                 if(parsed.botToken) telegramConfig.botToken = parsed.botToken;
                 if(parsed.chatId) telegramConfig.chatId = parsed.chatId;
                 if(parsed.enabled !== undefined) telegramConfig.enabled = parsed.enabled;
@@ -441,7 +474,7 @@
             const alertId = `${tfName}-${type}-${targetPrice.toFixed(2)}`;
             const now = Date.now();
             
-            // Check Cooldown
+            // Check Cooldown (With LocalStorage Persistence)
             if (alertCooldowns.has(alertId)) {
                 const lastTime = alertCooldowns.get(alertId);
                 if (now - lastTime < COOLDOWN_MINUTES * 60 * 1000) {
@@ -471,6 +504,7 @@
                 if (success) {
                     console.log(`Alert sent for ${alertId}`);
                     alertCooldowns.set(alertId, now);
+                    saveCooldowns(); // Persist to LocalStorage
                 }
             });
         }
