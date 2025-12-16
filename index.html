@@ -166,25 +166,6 @@
             transform: translateY(-1px);
         }
 
-        /* Price Ticker Animation */
-        .price-up { color: #16a34a; transition: color 0.3s; }
-        .price-down { color: #dc2626; transition: color 0.3s; }
-        
-        /* Blinking Dot for Realtime */
-        @keyframes blink-dot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.8); }
-        }
-        .live-dot {
-            width: 8px;
-            height: 8px;
-            background-color: #4ade80; /* green-400 */
-            border-radius: 50%;
-            display: inline-block;
-            animation: blink-dot 1.5s infinite ease-in-out;
-            box-shadow: 0 0 8px #4ade80;
-        }
-        
         /* Summary Card Styling */
         .conf-card {
             border-left: 4px solid #6366f1; /* Indigo-500 */
@@ -218,21 +199,7 @@
 
         // --- Init ---
         document.addEventListener('DOMContentLoaded', async () => {
-            initBinanceWS(); // Start WS with default
             initTelegram(); // Init Telegram Settings
-
-            // Add Event Listener for Source Change
-            const sourceSelector = document.getElementById('price-source-selector');
-            if (sourceSelector) {
-                sourceSelector.addEventListener('change', (e) => {
-                    changePriceSource(e.target.value);
-                });
-            }
-            
-            // Auto Update Diff every 30 minutes
-            setInterval(() => {
-                autoCalibrateDiff(true); // true = silent mode (no alert)
-            }, 30 * 60 * 1000);
 
             try {
                 const app = initializeApp(firebaseConfig);
@@ -267,47 +234,7 @@
             enabled: true
         };
         
-        // Anti-Spam / Cooldown for Live Alerts
-        let alertCooldowns = new Map(); 
-        const COOLDOWN_MINUTES = 5; 
-        const STORAGE_KEY_COOLDOWNS = 'tg_alert_cooldowns_v2'; // Key for localStorage
-
-        // Load Cooldowns from LocalStorage
-        function loadCooldowns() {
-            try {
-                const stored = localStorage.getItem(STORAGE_KEY_COOLDOWNS);
-                if (stored) {
-                    const entries = JSON.parse(stored);
-                    alertCooldowns = new Map(entries);
-                    
-                    // Cleanup old entries (older than 1 day)
-                    const now = Date.now();
-                    let changed = false;
-                    for (const [key, timestamp] of alertCooldowns) {
-                        if (now - timestamp > 24 * 60 * 60 * 1000) {
-                            alertCooldowns.delete(key);
-                            changed = true;
-                        }
-                    }
-                    if (changed) saveCooldowns();
-                }
-            } catch (e) {
-                console.error("Error loading cooldowns", e);
-            }
-        }
-
-        // Save Cooldowns to LocalStorage
-        function saveCooldowns() {
-            try {
-                localStorage.setItem(STORAGE_KEY_COOLDOWNS, JSON.stringify(Array.from(alertCooldowns.entries())));
-            } catch (e) {
-                console.error("Error saving cooldowns", e);
-            }
-        }
-
         function initTelegram() {
-            loadCooldowns(); // Load previous alert times
-
             const savedConfig = localStorage.getItem('telegramConfig');
             if (savedConfig) {
                 const parsed = JSON.parse(savedConfig);
@@ -481,269 +408,9 @@
             }
         };
 
-        // --- Live Alert to Telegram Logic ---
-        function checkAndSendLiveAlert(tfName, type, targetPrice, dist, context, currentBrokerPrice) {
-            // Unique ID for this specific alert: e.g., "H4-TP1-2650.00"
-            const alertId = `${tfName}-${type}-${targetPrice.toFixed(2)}`;
-            const now = Date.now();
-            
-            // Check Cooldown (With LocalStorage Persistence)
-            if (alertCooldowns.has(alertId)) {
-                const lastTime = alertCooldowns.get(alertId);
-                if (now - lastTime < COOLDOWN_MINUTES * 60 * 1000) {
-                    return; // Still in cooldown
-                }
-            }
-
-            // Prepare Message
-            let emoji = "🔔";
-            if (type.includes("TP")) emoji = "💰";
-            if (type.includes("Entry")) emoji = "🚀";
-
-            let msg = `${emoji} <b>LIVE ALERT: ราคาเข้าโซน!</b>\n\n`;
-            msg += `📌 <b>Setup: ${tfName}</b> (${type})\n`;
-            msg += `-----------------------------\n`;
-            msg += `💎 <b>ราคาปัจจุบัน:</b> <code>${currentBrokerPrice.toFixed(2)}</code>\n`;
-            msg += `📉 <b>ระยะห่าง:</b> <b>${dist.toFixed(2)}</b> จุด\n`;
-            msg += `-----------------------------\n`;
-            msg += `📋 <b>รายละเอียดแผน:</b>\n`;
-            msg += `🚀 <b>Entry:</b> ${context.entry}\n`;
-            msg += `💰 <b>TP1:</b> ${context.tp1}\n`;
-            msg += `💰 <b>TP2:</b> ${context.tp2}\n`;
-            msg += `\n<i>Generated by Gold Trading Journal Pro</i>`;
-            
-            // Send
-            sendTelegramMessage(msg).then(success => {
-                if (success) {
-                    console.log(`Alert sent for ${alertId}`);
-                    alertCooldowns.set(alertId, now);
-                    saveCooldowns(); // Persist to LocalStorage
-                }
-            });
-        }
-        
-        // --- Auto Diff Calibration ---
-        window.autoCalibrateDiff = async (isSilent = false) => {
-            const btn = document.getElementById('btn-auto-diff');
-            const originalText = btn.innerHTML;
-            
-            if (!isSilent) {
-                btn.innerHTML = '...';
-                btn.disabled = true;
-            }
-
-            try {
-                // Fetch generic Spot Gold price (XAU/USD) from a public API that supports CORS
-                const res = await fetch('https://data-asg.goldprice.org/dbXRates/USD');
-                if (!res.ok) throw new Error('API Error');
-                
-                const data = await res.json();
-                if (data.items && data.items.length > 0) {
-                    const spotPrice = data.items[0].xauPrice;
-                    const currentBinance = currentBinancePrice;
-                    
-                    if (currentBinance > 0) {
-                        const newDiff = spotPrice - currentBinance;
-                        const diffInput = document.getElementById('broker-diff');
-                        diffInput.value = newDiff.toFixed(2);
-                        calculateBrokerPrice(); // Trigger recalculation
-                        saveData(); // Save to Firebase
-                        
-                        if (!isSilent) {
-                            alert(`ปรับค่า Diff เรียบร้อย! ✅\n\nSpot Gold (World): ${spotPrice.toFixed(2)}\nBinance Price: ${currentBinance.toFixed(2)}\nNew Diff: ${newDiff.toFixed(2)}`);
-                        } else {
-                            console.log(`Auto-calibrated Diff: ${newDiff.toFixed(2)} (Spot: ${spotPrice}, Binance: ${currentBinance})`);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Auto Diff Error", e);
-                if (!isSilent) {
-                    alert("ไม่สามารถดึงราคาตลาดโลกได้ในขณะนี้\n(อาจติดปัญหาการเชื่อมต่อ หรือ API ปลายทาง)");
-                }
-            } finally {
-                if (!isSilent) {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }
-            }
-        };
-
-        // --- Binance WebSocket ---
-        let currentBinancePrice = 0;
-        let previousPrice = 0;
-        let binanceWs = null;
-        let currentSourceType = 'futures'; // Default to Futures (XAUUSDT)
-
-        function initBinanceWS(sourceType = 'futures') {
-            if (binanceWs) {
-                binanceWs.close();
-            }
-
-            currentSourceType = sourceType;
-            let url = '';
-            
-            if (sourceType === 'futures') {
-                // Binance Futures XAUUSDT - Closer to Spot Gold / Broker Price
-                url = 'wss://fstream.binance.com/ws/xauusdt@aggTrade';
-            } else {
-                // Binance Spot PAXG/USDT - Crypto Gold Token
-                url = 'wss://stream.binance.com:9443/ws/paxgusdt@trade';
-            }
-            
-            binanceWs = new WebSocket(url);
-            
-            binanceWs.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                // Futures uses 'p' for price in aggTrade, Spot uses 'p' in trade.
-                const price = parseFloat(data.p);
-                updatePriceDisplay(price);
-            };
-
-            binanceWs.onerror = (error) => {
-                console.error("Binance WS Error", error);
-                document.getElementById('binance-price-display').innerText = "Conn Err";
-            };
-
-            // Update Label
-            const label = document.getElementById('price-source-label');
-            if(label) label.innerText = sourceType === 'futures' ? 'Binance Futures (XAU)' : 'Binance Spot (PAXG)';
-        }
-
-        window.changePriceSource = (source) => {
-            initBinanceWS(source);
-        };
-
-        function updatePriceDisplay(price) {
-            currentBinancePrice = price;
-            const displayEl = document.getElementById('binance-price-display');
-            
-            if (price > previousPrice) {
-                displayEl.classList.remove('price-down');
-                displayEl.classList.add('price-up');
-            } else if (price < previousPrice) {
-                displayEl.classList.remove('price-up');
-                displayEl.classList.add('price-down');
-            }
-            previousPrice = price;
-            
-            displayEl.innerText = price.toFixed(2);
-            calculateBrokerPrice();
-        }
-
-        function calculateBrokerPrice() {
-            const diffInput = document.getElementById('broker-diff');
-            const diff = parseFloat(diffInput.value) || 0;
-            const brokerPrice = currentBinancePrice + diff;
-            
-            document.getElementById('broker-price-display').innerText = brokerPrice.toFixed(2);
-            
-            checkAlerts(brokerPrice);
-        }
-
-        // --- Alert Logic ---
-        function checkAlerts(currentPrice) {
-            const timeframes = ['mn', 'wk', 'd', 'h4', 'h1'];
-            let alertsHtml = '';
-            
-            const threshold = 3.0; 
-
-            timeframes.forEach(tf => {
-                checkSetup(tf, '', currentPrice, threshold, (html, tfName, type, target, dist, context) => {
-                    alertsHtml += html;
-                    checkAndSendLiveAlert(tfName, type, target, dist, context, currentPrice);
-                });
-                
-                const toggle = document.getElementById(`${tf}-toggle-2`);
-                if (toggle && toggle.checked) {
-                    checkSetup(tf, '-2', currentPrice, threshold, (html, tfName, type, target, dist, context) => {
-                        alertsHtml += html;
-                        checkAndSendLiveAlert(tfName, type, target, dist, context, currentPrice);
-                    });
-                }
-            });
-
-            const summaryAlertContainer = document.getElementById('summary-live-alerts');
-            if (summaryAlertContainer) {
-                if (alertsHtml === '') {
-                    summaryAlertContainer.innerHTML = `<div class="p-3 bg-gray-50 rounded-lg text-gray-400 text-sm text-center italic border border-gray-100 flex flex-col items-center gap-1">
-                        <span>ราคายังไม่เข้าใกล้โซนสำคัญ (ระยะ ${threshold} จุด)</span>
-                    </div>`;
-                } else {
-                    summaryAlertContainer.innerHTML = `
-                        <div class="grid grid-cols-1 gap-2">
-                            ${alertsHtml}
-                        </div>
-                    `;
-                }
-            }
-        }
-
-        function checkSetup(tf, suffix, price, threshold, callback) {
-            const sigEl = document.getElementById(`${tf}-sig${suffix}`);
-            const wickEl = document.getElementById(`${tf}-wick${suffix}`);
-            
-            if (!sigEl || !wickEl || !sigEl.value || !wickEl.value) return;
-
-            const wick = parseFloat(wickEl.value);
-            const tfName = tf.toUpperCase() + (suffix ? " (S2)" : "");
-            
-            const tp1El = document.getElementById(`${tf}-tp1-val${suffix}`);
-            const tp2El = document.getElementById(`${tf}-tp2-val${suffix}`);
-            
-            const tp1Val = (tp1El && tp1El.innerText !== "..." && tp1El.innerText !== "") ? tp1El.innerText : "-";
-            const tp2Val = (tp2El && tp2El.innerText !== "..." && tp2El.innerText !== "") ? tp2El.innerText : "-";
-
-            const context = { entry: wick.toFixed(2), tp1: tp1Val, tp2: tp2Val };
-
-            const distEntry = Math.abs(price - wick);
-            if (distEntry <= threshold) {
-                const html = createAlertItem(tfName, "จุดเข้า/เช็ครอบ", wick, distEntry, "bg-white border-l-4 border-blue-500 text-gray-700 shadow-sm");
-                callback(html, tfName, "จุดเข้า/เช็ครอบ", wick, distEntry, context);
-            }
-
-            if (tp1El && tp1El.innerText !== "..." && tp1El.innerText !== "") {
-                const tp1 = parseFloat(tp1El.innerText);
-                const distTp1 = Math.abs(price - tp1);
-                
-                if (distTp1 <= threshold) {
-                    const html = createAlertItem(tfName, "TP1", tp1, distTp1, "bg-white border-l-4 border-orange-500 text-gray-700 shadow-sm");
-                    callback(html, tfName, "TP1", tp1, distTp1, context);
-                }
-            }
-
-            if (tp2El && tp2El.innerText !== "..." && tp2El.innerText !== "") {
-                const tp2 = parseFloat(tp2El.innerText);
-                const distTp2 = Math.abs(price - tp2);
-                
-                if (distTp2 <= threshold) {
-                    const html = createAlertItem(tfName, "TP2", tp2, distTp2, "bg-white border-l-4 border-emerald-500 text-gray-700 shadow-sm");
-                    callback(html, tfName, "TP2", tp2, distTp2, context);
-                }
-            }
-        }
-
-        function createAlertItem(tf, type, targetPrice, dist, classes) {
-            return `
-            <div class="${classes} p-2 rounded-r-lg border-t border-b border-r border-gray-100 flex justify-between items-center transition-all hover:shadow-md text-sm">
-                <div>
-                    <div class="flex items-center gap-2 mb-0.5">
-                        <span class="text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 px-1.5 rounded">${tf}</span>
-                        <span class="text-xs font-bold ${type.includes('TP') ? 'text-indigo-600' : 'text-blue-600'}">${type}</span>
-                    </div>
-                    <div class="text-base font-mono font-bold leading-none text-gray-800">${targetPrice.toFixed(2)}</div>
-                </div>
-                <div class="text-right">
-                    <div class="text-[9px] text-gray-400">ระยะห่าง</div>
-                    <div class="text-xs font-bold text-red-500">${dist.toFixed(2)}</div>
-                </div>
-            </div>`;
-        }
-
-
         // --- Data Handling ---
         const fields = [
-            'date', 'dr-price', 'broker-diff',
+            'date', 'dr-price',
             'mn-sig', 'mn-wick', 'mn-tp1-check', 'mn-tp2-check', 'mn-low', 'mn-high',
             'mn-toggle-2', 'mn-sig-2', 'mn-wick-2', 'mn-tp1-check-2', 'mn-tp2-check-2',
             'wk-sig', 'wk-wick', 'wk-tp1-check', 'wk-tp2-check', 'wk-low', 'wk-high',
@@ -796,7 +463,6 @@
             processTimeframe('h1', 10, null);
 
             updateSummary();
-            calculateBrokerPrice();
         }
 
         function processTimeframe(prefix, tp1Diff, tp2Diff) {
@@ -1035,7 +701,6 @@
 
         function updateSummary() {
             const summaryDiv = document.getElementById('summary-content');
-            const topIntelligenceDiv = document.getElementById('intelligence-dashboard-content');
             if(!summaryDiv) return;
 
             let buyCount = 0;
@@ -1109,11 +774,11 @@
                 if(currentCluster.length > 1) clusters.push(currentCluster);
             }
 
-            // --- Build Intelligence HTML (Top) ---
+            // --- Build Intelligence HTML (Now inside Summary) ---
             let intelHTML = '';
             
             // Confluence
-            intelHTML += `<div class="mb-4">
+            intelHTML += `<div id="intelligence-dashboard-content" class="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h3 class="font-bold text-gray-700 text-sm mb-2 flex items-center gap-2">
                     🎯 โซนราคาสำคัญ (Confluence Zones)
                     <span class="text-[10px] font-normal text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">ทับซ้อนกันระยะ 5 จุด</span>
@@ -1155,19 +820,6 @@
             }
             intelHTML += `</div>`;
 
-            // Live Status Container
-            intelHTML += `<div>
-                <h3 class="font-bold text-gray-700 text-sm mb-2 flex items-center gap-2">
-                    🔔 สถานะราคาปัจจุบัน
-                    <span class="text-[10px] font-normal text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">Live Alerts (ระยะ 3 จุด)</span>
-                </h3>
-                <div id="summary-live-alerts">
-                    <p class="text-gray-400 text-xs italic text-center py-2">กำลังประมวลผลข้อมูลราคา...</p>
-                </div>
-            </div>`;
-
-            if(topIntelligenceDiv) topIntelligenceDiv.innerHTML = intelHTML;
-
 
             // --- Build Summary Footer HTML (Bottom) ---
             let sentimentHTML = '';
@@ -1201,7 +853,8 @@
                 </div>`;
             }
 
-            let html = sentimentHTML;
+            // Combine HTML: Intelligence (Confluence) at TOP, then Sentiment, then Grids
+            let html = intelHTML + sentimentHTML;
 
             // --- Grid Layout for Cards (OPTIMIZED FOR MOBILE) ---
             const drPriceEl = document.getElementById('dr-price');
@@ -1536,67 +1189,6 @@
                 <div id="summary-content">Loading...</div>
                 <!-- Hidden Note Container for Print Only -->
                 <div id="print-daily-note" class="hidden mt-4 pt-4 border-t border-gray-300"></div>
-                
-                <!-- NEW SECTION: Live Monitor -->
-                <div id="live-monitor-section" class="mt-8 bg-gray-900 text-white p-4 rounded-xl shadow-lg relative overflow-hidden border border-gray-700 no-print">
-                    <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                    </div>
-
-                    <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
-                        <!-- Title & Indicator -->
-                        <div class="flex items-center gap-3">
-                            <div class="relative flex h-3 w-3">
-                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                              <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                            </div>
-                            <h2 class="text-lg font-bold text-green-400 whitespace-nowrap">Live Gold Monitor</h2>
-                        </div>
-                        
-                        <!-- Controls Container (Horizontal Layout) -->
-                        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-center md:justify-end">
-                            <!-- Source Selector (NEW) -->
-                            <div class="flex items-center gap-2 bg-gray-800 rounded-lg p-1 border border-gray-700 mr-2">
-                                <span class="text-[10px] text-gray-400 uppercase px-2" id="price-source-label">Source</span>
-                                <select id="price-source-selector" class="bg-gray-700 text-white text-xs p-1 rounded border-none focus:ring-0 cursor-pointer hover:bg-gray-600 transition-colors">
-                                    <option value="futures">Binance Futures (XAU)</option>
-                                    <option value="spot">Binance Spot (PAXG)</option>
-                                </select>
-                            </div>
-
-                            <div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
-                                <div class="px-3 border-r border-gray-600">
-                                    <span class="text-[9px] text-gray-400 block uppercase">Binance</span>
-                                    <span id="binance-price-display" class="font-mono font-bold text-sm text-white">---</span>
-                                </div>
-                                <div class="px-2 flex items-center gap-1">
-                                    <span class="text-[9px] text-gray-400 uppercase mr-1">Diff</span>
-                                    <input type="number" id="broker-diff" step="0.01" class="bg-gray-700 text-yellow-400 font-bold border-none rounded p-1 w-16 text-right font-mono focus:ring-1 focus:ring-green-500 text-sm" placeholder="0.00" value="0.00">
-                                    <!-- Auto Diff Button -->
-                                    <button id="btn-auto-diff" onclick="autoCalibrateDiff()" class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold px-2 py-1 rounded ml-1 transition-colors" title="ดึงราคาตลาดโลก (Spot) มาคำนวณ Diff อัตโนมัติ">
-                                        ⚡ Auto
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="bg-gradient-to-r from-gray-800 to-gray-700 px-4 py-1.5 rounded-lg border border-green-900 shadow-inner flex items-center gap-3">
-                                <div class="text-right">
-                                    <span class="text-[9px] text-green-400 block uppercase font-bold tracking-wider">Broker Price</span>
-                                    <span id="broker-price-display" class="text-xl font-mono font-bold text-white tracking-tight leading-none">0.00</span>
-                                </div>
-                                <span class="live-dot mt-1" title="Real-time Active"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Intelligence Dashboard (Confluence & Alerts) -->
-                    <div id="intelligence-dashboard-container" class="bg-gray-100 rounded-lg p-3 text-gray-800">
-                        <div id="intelligence-dashboard-content">
-                            <p class="text-gray-400 text-xs italic text-center">กำลังโหลดข้อมูลวิเคราะห์...</p>
-                        </div>
-                    </div>
-                </div>
             </section>
 
         </div>
